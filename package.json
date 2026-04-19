@@ -1,0 +1,25 @@
+{
+  "name": "claudecat-poc",
+  "version": "0.1.0",
+  "description": "ClaudeCat POC — a sleeping cat orchestrates Claude Code workers in Docker containers to build your projects.",
+  "type": "module",
+  "bin": {
+    "claudecat": "./src/orchestrator.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "cli": "node src/orchestrator.js",
+    "build-image": "docker build -t claudecat/workspace:latest -f docker/workspace.Dockerfile ."
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "dockerode": "^4.0.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.22.1",
+    "ora": "^8.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

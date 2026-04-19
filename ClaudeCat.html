@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClaudeCat — Project Handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ClaudeCat handoff document
+   Aesthetic: technical spec meets editorial. Dark paper.
+   Monospace-forward, serif display for chapters.
+   ============================================================ */
+:root {
+  --ink:        #e8e4d8;    /* warm off-white body text */
+  --ink-dim:    #a8a395;
+  --ink-muted:  #6e6a60;
+  --paper:      #121210;    /* near-black, slight warm bias */
+  --paper-2:    #1a1a17;
+  --paper-3:    #222220;
+  --rule:       #2e2e2a;
+  --accent:     #ff8c42;    /* orange cat */
+  --accent-2:   #ffd166;    /* warm yellow */
+  --ok:         #8fbf73;
+  --warn:       #e8b04f;
+  --err:        #d96d6d;
+  --link:       #9dc4ff;
+  --shadow:     0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.4);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(255,140,66,.04), transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255,209,102,.03), transparent 50%);
+}
+
+a { color: var(--link); text-decoration: none; border-bottom: 1px dashed var(--rule); }
+a:hover { border-bottom-color: var(--link); }
+
+/* ---------- Layout ---------- */
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 32px 120px;
+}
+
+/* ---------- Masthead ---------- */
+.masthead {
+  border-top: 3px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  padding: 24px 0 20px;
+  margin-bottom: 40px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 24px;
+}
+.masthead .title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(44px, 7vw, 72px);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  margin: 0;
+  font-variation-settings: "opsz" 144;
+}
+.masthead .title em {
+  font-style: italic;
+  color: var(--accent);
+  font-weight: 300;
+}
+.masthead .meta {
+  text-align: right;
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  line-height: 1.8;
+}
+.masthead .meta strong { color: var(--ink); }
+
+.subhead {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+  margin: 0 0 48px;
+  max-width: 70ch;
+}
+
+/* ---------- Banner ---------- */
+.banner {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  padding: 18px 22px;
+  margin: 0 0 48px;
+  font-size: 13px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  align-items: center;
+}
+.banner .cat-art {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.1;
+  color: var(--accent);
+  white-space: pre;
+}
+.banner p { margin: 0; color: var(--ink-dim); }
+.banner strong { color: var(--ink); }
+
+/* ---------- Sections ---------- */
+section { margin: 56px 0; }
+section > h2 {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+section > h2 .num {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--accent);
+  margin-right: 14px;
+  vertical-align: 4px;
+  letter-spacing: 0.05em;
+}
+section > .section-lede {
+  color: var(--ink-dim);
+  font-size: 14px;
+  margin: 0 0 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  max-width: 75ch;
+}
+
+h3 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-2);
+  margin: 32px 0 12px;
+}
+
+h4 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 20px 0 8px;
+}
+
+p { margin: 0 0 14px; max-width: 78ch; }
+
+/* ---------- Lists ---------- */
+ul, ol { padding-left: 20px; margin: 8px 0 16px; max-width: 78ch; }
+li { margin-bottom: 6px; }
+ul.tight li, ol.tight li { margin-bottom: 2px; }
+
+/* ---------- Code blocks ---------- */
+pre, code { font-family: var(--mono); }
+code {
+  background: var(--paper-3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 12.5px;
+  color: var(--accent-2);
+  border: 1px solid var(--rule);
+}
+pre {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 14px 0 20px;
+  border-radius: 2px;
+  box-shadow: var(--shadow);
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ink);
+  font-size: inherit;
+}
+pre .c-com { color: var(--ink-muted); font-style: italic; }
+pre .c-str { color: var(--ok); }
+pre .c-kw  { color: var(--accent); }
+pre .c-num { color: var(--accent-2); }
+pre .c-fn  { color: var(--link); }
+
+/* ---------- Tables ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 24px;
+  font-size: 13px;
+}
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-2);
+  font-weight: 700;
+  border-bottom: 2px solid var(--rule);
+  background: var(--paper-2);
+}
+tr:hover td { background: rgba(255,140,66,0.02); }
+
+/* ---------- Callouts ---------- */
+.callout {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--warn);
+  background: var(--paper-2);
+  padding: 14px 18px;
+  margin: 16px 0 20px;
+  font-size: 13px;
+}
+.callout.ok   { border-left-color: var(--ok); }
+.callout.err  { border-left-color: var(--err); }
+.callout.note { border-left-color: var(--link); }
+.callout .label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--warn);
+  margin-bottom: 4px;
+  display: block;
+}
+.callout.ok .label   { color: var(--ok); }
+.callout.err .label  { color: var(--err); }
+.callout.note .label { color: var(--link); }
+.callout p:last-child { margin-bottom: 0; }
+
+/* ---------- Labeled rows (key/value) ---------- */
+.kv {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin: 14px 0 20px;
+  background: var(--paper-2);
+}
+.kv .k, .kv .v {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+.kv .k {
+  color: var(--ink-dim);
+  border-right: 1px solid var(--rule);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  padding-top: 12px;
+}
+.kv > :nth-last-child(-n+2) { border-bottom: none; }
+
+/* ---------- File tree ---------- */
+.tree {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  padding: 16px 22px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  overflow-x: auto;
+  margin: 14px 0 20px;
+}
+.tree .dir { color: var(--accent); font-weight: 500; }
+.tree .file { color: var(--ink); }
+.tree .note { color: var(--ink-muted); font-style: italic; }
+.tree .gone { color: var(--ink-muted); text-decoration: line-through; }
+
+/* ---------- Task checklist ---------- */
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 24px;
+}
+.checklist li {
+  padding: 8px 0 8px 28px;
+  position: relative;
+  border-bottom: 1px dashed var(--rule);
+  font-size: 13px;
+}
+.checklist li:last-child { border-bottom: none; }
+.checklist li::before {
+  content: "☐";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  color: var(--accent);
+  font-size: 14px;
+}
+.checklist li.done::before { content: "☑"; color: var(--ok); }
+.checklist li .tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--paper-3);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+.checklist li .tag.hot { background: rgba(217,109,109,.1); color: var(--err); border-color: rgba(217,109,109,.3); }
+.checklist li .tag.soon { background: rgba(232,176,79,.1); color: var(--warn); border-color: rgba(232,176,79,.3); }
+
+/* ---------- TOC ---------- */
+.toc {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  padding: 20px 24px;
+  margin: 0 0 48px;
+  columns: 2;
+  column-gap: 32px;
+  font-size: 12.5px;
+}
+.toc h2 {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent-2);
+  margin: 0 0 10px;
+  column-span: all;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+}
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li {
+  padding: 3px 0;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 6px;
+  align-items: baseline;
+}
+.toc li .n { color: var(--accent); font-size: 11px; }
+.toc a { border: none; color: var(--ink); }
+.toc a:hover { color: var(--accent); }
+
+/* ---------- ASCII diagram ---------- */
+.ascii {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  padding: 18px 22px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-x: auto;
+  margin: 14px 0 20px;
+  white-space: pre;
+}
+.ascii .hi { color: var(--accent); }
+.ascii .hi2 { color: var(--accent-2); }
+.ascii .dim { color: var(--ink-muted); }
+
+/* ---------- Footer ---------- */
+footer {
+  margin-top: 80px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+  .page { padding: 24px 18px 80px; }
+  .masthead { grid-template-columns: 1fr; }
+  .masthead .meta { text-align: left; }
+  .toc { columns: 1; }
+  .kv { grid-template-columns: 1fr; }
+  .kv .k { border-right: none; }
+  .banner { grid-template-columns: 1fr; }
+  .banner .cat-art { display: none; }
+}
+
+/* ---------- Print ---------- */
+@media print {
+  body { background: white; color: black; }
+  a { color: black; }
+  pre, .tree, .ascii, .callout, .kv, .banner { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<!-- ============================================================
+     MASTHEAD
+     ============================================================ -->
+<header class="masthead">
+  <h1 class="title">Claude<em>Cat</em></h1>
+  <div class="meta">
+    <strong>Project Handoff</strong><br>
+    Version 0.1 · POC<br>
+    For: Claude Code CLI
+  </div>
+</header>
+
+<p class="subhead">A sleeping cat orchestrates Claude&nbsp;Code workers inside Docker containers to build entire projects — coordinating specialist "cats" through structured handoffs on disk, never reading their thinking.</p>
+
+<!-- ============================================================
+     ORIENTATION BANNER
+     ============================================================ -->
+<div class="banner">
+<pre class="cat-art">   /\_/\  
+  ( o.o )  
+   > ^ <   </pre>
+  <p><strong>Dear coding agent:</strong> this document is your brief. Every section below maps to something you will implement or verify. Read it end-to-end before writing any code. Sections 7 (Task List) and 8 (Acceptance Criteria) tell you exactly what "done" looks like.</p>
+</div>
+
+<!-- ============================================================
+     TABLE OF CONTENTS
+     ============================================================ -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><span class="n">01</span><a href="#vision">Vision &amp; Concept</a></li>
+    <li><span class="n">02</span><a href="#architecture">Architecture</a></li>
+    <li><span class="n">03</span><a href="#lifecycle">Project Lifecycle</a></li>
+    <li><span class="n">04</span><a href="#skills">Skills &amp; Cats Model</a></li>
+    <li><span class="n">05</span><a href="#handoffs">Handoff Contracts</a></li>
+    <li><span class="n">06</span><a href="#files">File Structure</a></li>
+    <li><span class="n">07</span><a href="#tasks">Task List</a></li>
+    <li><span class="n">08</span><a href="#acceptance">Acceptance Criteria</a></li>
+    <li><span class="n">09</span><a href="#gotchas">Known Gotchas</a></li>
+    <li><span class="n">10</span><a href="#notdoing">Explicitly Out of Scope</a></li>
+    <li><span class="n">11</span><a href="#roadmap">Roadmap After v0</a></li>
+    <li><span class="n">12</span><a href="#references">References</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================
+     01 VISION
+     ============================================================ -->
+<section id="vision">
+  <h2><span class="num">01</span>Vision &amp; Concept</h2>
+  <p class="section-lede">The idea in one paragraph, the problem it solves, and why the mental model matters.</p>
+
+  <h3>The Idea</h3>
+  <p>ClaudeCat is a desktop app where a pixel-art cat lives in the corner of your screen. By default, it's asleep. You click it, a text box appears, you type what you want built. The cat wakes up, opens an "office" UI, and summons specialist cats — an Architect, a Coder, a Designer, a Marketer — each a Claude&nbsp;Code instance with a tailored system prompt. They work together inside a sandboxed Docker container, producing a runnable project. You watch cats bustle around an office while your app is built.</p>
+
+  <h3>The Technical Core</h3>
+  <p>Underneath the whimsy is a multi-agent orchestration pattern:</p>
+  <ul>
+    <li>A host-side <strong>orchestrator</strong> plans work and supervises workers.</li>
+    <li>Each <strong>worker (cat)</strong> is a Claude&nbsp;Code process spawned inside a shared project container with a specialist system prompt.</li>
+    <li>Workers communicate through <strong>structured handoff JSON files</strong> on disk — the orchestrator never reads worker reasoning, only final handoffs. This bounds token cost and keeps the pipeline inspectable.</li>
+    <li>Projects are <strong>sandboxed in Docker</strong> with CPU/memory caps so full-auto execution (<code>--dangerously-skip-permissions</code>) is safe.</li>
+  </ul>
+
+  <h3>Why the Cat</h3>
+  <p>Multi-agent orchestration frameworks already exist (CrewAI, AutoGen, LangGraph). What differentiates ClaudeCat is <em>feel</em>: the delight of watching pixel cats do your work. The cat metaphor isn't decoration — it's the product. Preserve it everywhere.</p>
+</section>
+
+<!-- ============================================================
+     02 ARCHITECTURE
+     ============================================================ -->
+<section id="architecture">
+  <h2><span class="num">02</span>Architecture</h2>
+  <p class="section-lede">Top-level component diagram. Host vs. container boundary. Data flow.</p>
+
+  <pre class="ascii"><span class="dim">┌────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="hi">HOST</span>  (user's machine)                                         <span class="dim">│</span>
+<span class="dim">│</span>                                                                <span class="dim">│</span>
+<span class="dim">│</span>    <span class="hi2">Electron shell</span>  ──▶  Pixel cat UI · office view · input box  <span class="dim">│</span>
+<span class="dim">│</span>          │                                                     <span class="dim">│</span>
+<span class="dim">│</span>          │  IPC (events: task:started, task:log, task:done)    <span class="dim">│</span>
+<span class="dim">│</span>          ▼                                                     <span class="dim">│</span>
+<span class="dim">│</span>    <span class="hi2">Orchestrator</span> (Node)                                          <span class="dim">│</span>
+<span class="dim">│</span>     · planner · scheduler · budget/timeout guards               <span class="dim">│</span>
+<span class="dim">│</span>     · reads handoff JSON, never worker stdout                   <span class="dim">│</span>
+<span class="dim">│</span>          │                                                     <span class="dim">│</span>
+<span class="dim">│</span>          │  dockerode: create / exec / stop                    <span class="dim">│</span>
+<span class="dim">│</span>          ▼                                                     <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">┌──────────────────────────────────────────────────┐</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span> <span class="hi">PROJECT CONTAINER</span>  claudecat/workspace:latest    <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>                                                  <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>   /workspace  <─── bind-mount ───┐               <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>     ├── spec.md           (architect writes)     <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>     ├── src/              (coder writes)         <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>     └── .claudecat/                              <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>          ├── handoffs/{task}.json                <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>          ├── events/{task}.log                   <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>          └── prompts/{task}.(system|task).md     <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>                                  │               <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>   <span class="hi2">Workers spawned via `docker exec`:</span>              <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>     claude -p &lt;task&gt; \                           <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>       --append-system-prompt &lt;cat_prompt&gt; \      <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>       --dangerously-skip-permissions             <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>       --output-format stream-json                <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>                                  │               <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">│</span>   Limits: 2 GB RAM · 2 CPU · 10 min wall-clock  <span class="dim">│</span>       <span class="dim">│</span>
+<span class="dim">│</span>    <span class="dim">└──────────────────────────────────────────────────┘</span>       <span class="dim">│</span>
+<span class="dim">│</span>                                  │                             <span class="dim">│</span>
+<span class="dim">│</span>                                  ▼                             <span class="dim">│</span>
+<span class="dim">│</span>                    <span class="hi">~/claudecat/projects/&lt;id&gt;/</span>              <span class="dim">│</span>
+<span class="dim">│</span>                    (persisted, user-editable)                  <span class="dim">│</span>
+<span class="dim">└────────────────────────────────────────────────────────────────┘</span></pre>
+
+  <h3>Key Boundaries</h3>
+  <div class="kv">
+    <div class="k">Host ↔ Container</div>
+    <div class="v">Orchestrator lives on host (needs Docker socket). Workers live in container (sandboxed). <code>/workspace</code> bind-mount is the only shared surface.</div>
+    <div class="k">Orchestrator ↔ Worker</div>
+    <div class="v">One-way: orchestrator launches worker, worker writes handoff to disk, orchestrator reads handoff. No back-channel. No stdout ingestion.</div>
+    <div class="k">Worker ↔ Worker</div>
+    <div class="v">Indirect, via <code>/workspace</code>. Later workers read earlier handoffs and produced files. Never direct IPC.</div>
+    <div class="k">UI ↔ Orchestrator</div>
+    <div class="v">Local IPC (Electron main/renderer). Events flow up (progress), commands flow down (start project, cancel, approve checkpoint).</div>
+  </div>
+</section>
+
+<!-- ============================================================
+     03 LIFECYCLE
+     ============================================================ -->
+<section id="lifecycle">
+  <h2><span class="num">03</span>Project Lifecycle</h2>
+  <p class="section-lede">The seven phases a project moves through, from user prompt to running app.</p>
+
+  <h3>Phase 1 — Intake</h3>
+  <p>User clicks the sleeping cat. Text box appears. User types a goal. Orchestrator produces a <strong>project brief</strong> (goal, stack inference, skills needed, step count, estimated cost, ambiguities) and shows it to the user for one-click approval. Nothing is spawned until the brief is accepted.</p>
+
+  <h3>Phase 2 — Provisioning</h3>
+  <p>Orchestrator creates <code>~/claudecat/projects/&lt;id&gt;/</code>, spins up a container with that dir bind-mounted to <code>/workspace</code>, labels the container with <code>claudecat.session=&lt;id&gt;</code>, and writes <code>.claudecat/manifest.json</code> (the project's source of truth).</p>
+
+  <h3>Phase 3 — Planning</h3>
+  <p>Orchestrator decomposes the brief into a <strong>task DAG</strong>. Some tasks parallelize, some are serial (see Section 9: shared-file contention). The DAG lives in the manifest.</p>
+  <div class="callout note">
+    <span class="label">v0 simplification</span>
+    <p>The POC hardcodes a two-step serial plan: <code>architect → coder</code>. LLM-driven DAG planning is a v1 feature. Do not build it yet.</p>
+  </div>
+
+  <h3>Phase 4 — Execution</h3>
+  <p>Each task spawns a scoped Claude&nbsp;Code instance inside the container with: (a) the cat's system prompt loaded via <code>--append-system-prompt</code>, (b) the task description as the main prompt, (c) a clear "done" criterion, (d) resource + time limits. Each cat writes a handoff artifact when finished.</p>
+
+  <h3>Phase 5 — Checkpoints</h3>
+  <p>Most steps proceed automatically. User approval is required only when:</p>
+  <ul class="tight">
+    <li>An action would cost real money (deploying, paid APIs).</li>
+    <li>An operation is irreversible against non-sandbox resources.</li>
+    <li>A cat explicitly flags <code>open_questions</code>.</li>
+    <li>The same task fails twice in a row.</li>
+  </ul>
+
+  <h3>Phase 6 — Delivery</h3>
+  <p>Orchestrator runs the final project (<code>docker compose up</code> or the coder's <code>run_command</code>), maps the port, generates a preview URL, writes a README summarizing what was built. User sees: live preview, source code in the bind-mounted dir, task summary.</p>
+
+  <h3>Phase 7 — Teardown / Persistence</h3>
+  <p>Default: <strong>ephemeral runtime</strong>. Container stops after N minutes idle; code persists on disk; project can be resumed. User can toggle "keep alive" for active projects. Explicit "archive" snapshots everything and frees resources.</p>
+</section>
+
+<!-- ============================================================
+     04 SKILLS MODEL
+     ============================================================ -->
+<section id="skills">
+  <h2><span class="num">04</span>Skills &amp; Cats Model</h2>
+  <p class="section-lede">A "cat" is a bundle. Inspectable, testable, composable. Eventually there will be a marketplace — not yet.</p>
+
+  <h3>Bundle Structure</h3>
+  <pre class="tree"><span class="dir">skills/</span>
+├── <span class="dir">coder-cat/</span>
+│   ├── <span class="file">manifest.json</span>       <span class="note"># metadata, version, deps</span>
+│   ├── <span class="file">system-prompt.md</span>    <span class="note"># the cat's persona + rules</span>
+│   ├── <span class="file">capabilities.json</span>   <span class="note"># accepts / produces contract</span>
+│   ├── <span class="file">tools.json</span>          <span class="note"># tool permissions</span>
+│   ├── <span class="dir">examples/</span>            <span class="note"># few-shot good outputs</span>
+│   ├── <span class="dir">tests/</span>               <span class="note"># eval cases</span>
+│   └── <span class="dir">assets/</span>              <span class="note"># sprite, sounds, sprite sheet</span>
+├── <span class="dir">architect-cat/</span>
+└── <span class="dir">designer-cat/</span></pre>
+
+  <h3>Manifest Schema</h3>
+  <pre><code><span class="c-kw">{</span>
+  <span class="c-str">"name"</span>:            <span class="c-str">"backend-coder-cat"</span>,
+  <span class="c-str">"version"</span>:         <span class="c-str">"1.2.0"</span>,
+  <span class="c-str">"author"</span>:          <span class="c-str">"ClaudeCat core"</span>,
+  <span class="c-str">"accepts"</span>:         <span class="c-kw">[</span><span class="c-str">"api-spec.md"</span>, <span class="c-str">"db-schema.sql"</span><span class="c-kw">]</span>,
+  <span class="c-str">"produces"</span>:        <span class="c-kw">[</span><span class="c-str">"src/**/*.js"</span>, <span class="c-str">"handoff.md"</span><span class="c-kw">]</span>,
+  <span class="c-str">"requires_skills"</span>: <span class="c-kw">[]</span>,
+  <span class="c-str">"permissions"</span>:     <span class="c-kw">{</span> <span class="c-str">"network"</span>: <span class="c-kw">true</span>, <span class="c-str">"fs_write"</span>: <span class="c-kw">true</span> <span class="c-kw">}</span>,
+  <span class="c-str">"cost_estimate"</span>:   <span class="c-str">"medium"</span>,
+  <span class="c-str">"sandbox_level"</span>:   <span class="c-str">"container"</span>
+<span class="c-kw">}</span></code></pre>
+  <p>The <code>accepts</code> and <code>produces</code> fields form the <strong>composition contract</strong>. The orchestrator uses these to validate that task outputs match next-task inputs.</p>
+
+  <h3>Three Installation Tiers</h3>
+  <table>
+    <thead><tr><th style="width:18%">Tier</th><th>Source</th><th>v0?</th></tr></thead>
+    <tbody>
+      <tr><td>Built-in</td><td>Ships in the repo under <code>workers/</code>. Architect, Coder.</td><td>✅ yes</td></tr>
+      <tr><td>Local / custom</td><td>User drops a folder in <code>~/claudecat/skills/</code>. Auto-discovered at startup.</td><td>Stubbed (directory scanning only; no loading)</td></tr>
+      <tr><td>Marketplace</td><td>Signed bundles from verified publishers, downloaded on demand.</td><td>❌ not until built-ins prove the model</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Versioning</h3>
+  <p>Projects pin cat versions in their <code>manifest.json</code> (<code>backend-coder-cat@1.2.0</code>). Rebuilding later uses the same version unless the user explicitly upgrades. This is <code>package-lock.json</code> for prompts.</p>
+</section>
+
+<!-- ============================================================
+     05 HANDOFF CONTRACTS
+     ============================================================ -->
+<section id="handoffs">
+  <h2><span class="num">05</span>Handoff Contracts</h2>
+  <p class="section-lede">The discipline that keeps this system from becoming an unparseable mess. Every cat writes one of these. The orchestrator reads only these, never worker output.</p>
+
+  <h3>Required Fields</h3>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>task_id</code></td><td>string</td><td>✓</td><td>matches the task in the DAG (e.g., "architect")</td></tr>
+      <tr><td><code>status</code></td><td>"completed" \| "failed"</td><td>✓</td><td>binary — drives orchestrator branching</td></tr>
+      <tr><td><code>summary</code></td><td>string, ≤1 sentence</td><td>✓</td><td>human-readable one-liner</td></tr>
+      <tr><td><code>files_created</code></td><td>string[]</td><td>recommended</td><td>orchestrator verifies these exist + non-empty</td></tr>
+      <tr><td><code>files_modified</code></td><td>string[]</td><td>—</td><td>same verification</td></tr>
+      <tr><td><code>assumptions_made</code></td><td>string[]</td><td>—</td><td>surfaced to user if later step conflicts</td></tr>
+      <tr><td><code>open_questions</code></td><td>string[]</td><td>—</td><td>non-empty ⇒ checkpoint to user</td></tr>
+      <tr><td><code>handoff_to_next</code></td><td>string</td><td>—</td><td>one-sentence hint for next cat</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Example — Architect Output</h3>
+  <pre><code><span class="c-kw">{</span>
+  <span class="c-str">"task_id"</span>:          <span class="c-str">"architect"</span>,
+  <span class="c-str">"status"</span>:           <span class="c-str">"completed"</span>,
+  <span class="c-str">"summary"</span>:          <span class="c-str">"Designed a minimal Express + SQLite todo API."</span>,
+  <span class="c-str">"files_created"</span>:    <span class="c-kw">[</span><span class="c-str">"spec.md"</span><span class="c-kw">]</span>,
+  <span class="c-str">"stack"</span>:            <span class="c-kw">[</span><span class="c-str">"node"</span>, <span class="c-str">"express"</span>, <span class="c-str">"sqlite"</span><span class="c-kw">]</span>,
+  <span class="c-str">"run_command"</span>:      <span class="c-str">"npm install &amp;&amp; npm start"</span>,
+  <span class="c-str">"port"</span>:             <span class="c-num">3000</span>,
+  <span class="c-str">"assumptions_made"</span>: <span class="c-kw">[</span><span class="c-str">"JSON body parsing"</span>, <span class="c-str">"no auth for v0"</span><span class="c-kw">]</span>,
+  <span class="c-str">"open_questions"</span>:   <span class="c-kw">[]</span>,
+  <span class="c-str">"handoff_to_next"</span>:  <span class="c-str">"Coder implements per spec.md"</span>
+<span class="c-kw">}</span></code></pre>
+
+  <h3>The Three Failure Modes</h3>
+  <ol>
+    <li><strong>Success</strong> — valid handoff, <code>status: "completed"</code>. Trust it, move on.</li>
+    <li><strong>Known failure</strong> — valid handoff, <code>status: "failed"</code>, populated <code>open_questions</code> or summary explains what broke. Orchestrator decides: retry / escalate / skip.</li>
+    <li><strong>Unknown failure</strong> — no handoff at all. Worker crashed, hit token limit, got stuck. Orchestrator falls back to: read last N lines of <code>events/&lt;task&gt;.log</code>, report to user.</li>
+  </ol>
+  <p>The system prompt of every cat must <strong>mandate</strong> writing the handoff even on failure. Belt + suspenders: a post-exec shim that force-writes a stub handoff if the worker didn't.</p>
+
+  <h3>Verification</h3>
+  <p>After reading a handoff, the orchestrator runs <strong>cheap deterministic verification</strong> — not LLM-based:</p>
+  <ul class="tight">
+    <li>Do files in <code>files_created</code> actually exist?</li>
+    <li>Are they non-trivially sized (&gt;2 bytes)?</li>
+    <li>If the handoff claims "tests pass," run the tests.</li>
+    <li>If it claims "install succeeded," no verification needed — the next task will surface it.</li>
+  </ul>
+  <p>Workers that lie get caught. Verification failures are equivalent to task failures.</p>
+</section>
+
+<!-- ============================================================
+     06 FILE STRUCTURE
+     ============================================================ -->
+<section id="files">
+  <h2><span class="num">06</span>File Structure</h2>
+  <p class="section-lede">What exists today in the v0 POC, and what the target layout looks like.</p>
+
+  <h3>Current Repo (v0 POC)</h3>
+  <pre class="tree"><span class="dir">claudecat-poc/</span>
+├── <span class="file">package.json</span>
+├── <span class="file">README.md</span>
+├── <span class="file">.env.example</span>
+├── <span class="file">.gitignore</span>
+├── <span class="dir">src/</span>
+│   ├── <span class="file">orchestrator.js</span>    <span class="note"># entry point, main lifecycle</span>
+│   ├── <span class="file">planner.js</span>         <span class="note"># hardcoded 2-step plan for v0</span>
+│   ├── <span class="file">worker.js</span>          <span class="note"># spawn Claude Code via docker exec</span>
+│   ├── <span class="file">container.js</span>       <span class="note"># Docker lifecycle via dockerode</span>
+│   ├── <span class="file">handoff.js</span>         <span class="note"># read + validate handoff JSON</span>
+│   └── <span class="file">logger.js</span>          <span class="note"># cat-themed terminal output</span>
+├── <span class="dir">workers/</span>
+│   ├── <span class="file">architect.md</span>       <span class="note"># system prompt</span>
+│   └── <span class="file">coder.md</span>           <span class="note"># system prompt</span>
+├── <span class="dir">docker/</span>
+│   └── <span class="file">workspace.Dockerfile</span> <span class="note"># Node + Python + Claude Code</span>
+└── <span class="dir">projects/</span>             <span class="note"># generated projects land here (gitignored)</span></pre>
+
+  <h3>Runtime Artifacts (inside a project)</h3>
+  <pre class="tree"><span class="dir">projects/&lt;id&gt;/</span>
+├── <span class="file">spec.md</span>               <span class="note"># architect output</span>
+├── <span class="file">package.json</span>          <span class="note"># coder output</span>
+├── <span class="dir">src/</span>                  <span class="note"># coder output</span>
+└── <span class="dir">.claudecat/</span>
+    ├── <span class="file">manifest.json</span>      <span class="note"># project state of truth</span>
+    ├── <span class="dir">handoffs/</span>
+    │   ├── <span class="file">architect.json</span>
+    │   └── <span class="file">coder.json</span>
+    ├── <span class="dir">events/</span>
+    │   ├── <span class="file">architect.log</span>   <span class="note"># raw stdout (for debugging)</span>
+    │   └── <span class="file">coder.log</span>
+    └── <span class="dir">prompts/</span>
+        ├── <span class="file">architect.system.md</span>
+        ├── <span class="file">architect.task.md</span>
+        ├── <span class="file">coder.system.md</span>
+        └── <span class="file">coder.task.md</span></pre>
+</section>
+
+<!-- ============================================================
+     07 TASK LIST
+     ============================================================ -->
+<section id="tasks">
+  <h2><span class="num">07</span>Task List</h2>
+  <p class="section-lede">What the next Claude Code agent should do, in priority order. Check off as you go.</p>
+
+  <h3>P0 — Verify v0 Works End-to-End</h3>
+  <ul class="checklist">
+    <li><code>npm install</code> succeeds; no peer warnings. <span class="tag hot">blocker</span></li>
+    <li><code>npm run build-image</code> builds <code>claudecat/workspace:latest</code> successfully. <span class="tag hot">blocker</span></li>
+    <li>Running <code>node src/orchestrator.js "hello world express server"</code> with a valid <code>ANTHROPIC_API_KEY</code> produces a working project in <code>projects/&lt;id&gt;/</code>. <span class="tag hot">blocker</span></li>
+    <li>Inspect <code>.claudecat/handoffs/architect.json</code> — all required fields present. <span class="tag hot">blocker</span></li>
+    <li>Inspect <code>.claudecat/handoffs/coder.json</code> — all required fields present. <span class="tag hot">blocker</span></li>
+    <li>Manually run the generated project; confirm it starts on the declared port. <span class="tag hot">blocker</span></li>
+  </ul>
+
+  <h3>P1 — Robustness Fixes (before anything else)</h3>
+  <ul class="checklist">
+    <li>Add a <strong>post-exec handoff shim</strong>: if the worker exits without writing <code>{task_id}.json</code>, the orchestrator writes a stub handoff with <code>status: "failed"</code> and <code>reason: "no_handoff"</code> plus the last 200 lines of <code>events/{task_id}.log</code>. <span class="tag soon">soon</span></li>
+    <li>Add <strong>retry logic</strong>: per-task max 2 retries. After the second failure, surface to user with a clear message. <span class="tag soon">soon</span></li>
+    <li>Add <strong>budget enforcement</strong>: track cumulative tokens consumed per run, halt if <code>CLAUDECAT_BUDGET_USD</code> is exceeded (estimate via Claude Code's stream-json token counters). <span class="tag soon">soon</span></li>
+    <li>Add <code>--user $(id -u):$(id -g)</code> to the container spec for Linux bind-mount permission correctness.</li>
+    <li>Verify <code>docker exec</code> timeout is actually killed at the container level (orphan <code>claude</code> process check).</li>
+  </ul>
+
+  <h3>P2 — Extend the Cat Roster</h3>
+  <ul class="checklist">
+    <li>Add <code>workers/designer.md</code> — produces HTML/CSS when project is a static site.</li>
+    <li>Add <code>workers/tester.md</code> — writes and runs smoke tests against coder output.</li>
+    <li>Move <code>planner.js</code> to a capability-aware planner: given a goal, pick which cats to run from available <code>workers/</code>.</li>
+  </ul>
+
+  <h3>P3 — Preview URL + Final Run</h3>
+  <ul class="checklist">
+    <li>After coder handoff, orchestrator starts the app inside the container using <code>run_command</code>.</li>
+    <li>Map <code>port</code> (from architect handoff) to a host port.</li>
+    <li>Print preview URL (e.g., <code>http://localhost:&lt;mapped_port&gt;</code>) to the terminal.</li>
+    <li><strong>Later:</strong> Traefik-based subdomain routing for <code>&lt;project-id&gt;.claudecat.local</code>.</li>
+  </ul>
+
+  <h3>P4 — Skill Bundle Format</h3>
+  <ul class="checklist">
+    <li>Define <code>skills/*/manifest.json</code> schema (see Section 4).</li>
+    <li>Migrate existing <code>workers/*.md</code> into bundles under <code>skills/architect-cat/</code>, <code>skills/coder-cat/</code>.</li>
+    <li>Loader: scan <code>skills/</code> at orchestrator startup, register available cats by name.</li>
+    <li>Manifest-driven composition: orchestrator checks <code>accepts</code> / <code>produces</code> compatibility when sequencing tasks.</li>
+  </ul>
+
+  <h3>P5 — Electron UI (new surface, separate milestone)</h3>
+  <ul class="checklist">
+    <li>Bootstrap Electron shell with a transparent always-on-top window for the floating cat.</li>
+    <li>Pixel sprite cat with CSS sprite-sheet animation (start: sleep → wake → idle).</li>
+    <li>Click-to-open text input; sends goal to orchestrator via IPC.</li>
+    <li>"Office view" window: shows active cats, streams <code>task:log</code> events per cat.</li>
+    <li>State machine for cat animations (sleep · wake · thinking · working · celebrating · failed).</li>
+  </ul>
+</section>
+
+<!-- ============================================================
+     08 ACCEPTANCE
+     ============================================================ -->
+<section id="acceptance">
+  <h2><span class="num">08</span>Acceptance Criteria</h2>
+  <p class="section-lede">How to know the POC is actually working. Don't move past v0 until all of these are green.</p>
+
+  <div class="callout ok">
+    <span class="label">Criterion 1 — Happy path</span>
+    <p>A user with Docker running and a valid API key can execute <code>node src/orchestrator.js "build me a hello world express server"</code> and get a project that runs on first try.</p>
+  </div>
+
+  <div class="callout ok">
+    <span class="label">Criterion 2 — Handoff discipline</span>
+    <p>For 5 consecutive runs, every cat writes a valid <code>.claudecat/handoffs/&lt;task&gt;.json</code> with <code>status</code>, <code>summary</code>, and <code>files_created</code>. Zero missing handoffs. <strong>This is the most important metric.</strong> If cats skip the handoff, the whole architecture breaks down.</p>
+  </div>
+
+  <div class="callout ok">
+    <span class="label">Criterion 3 — Token discipline</span>
+    <p>The orchestrator's own LLM token usage is zero (v0 has no LLM planner). Worker token counts are logged but the orchestrator never reads worker stdout into its context.</p>
+  </div>
+
+  <div class="callout ok">
+    <span class="label">Criterion 4 — Sandbox integrity</span>
+    <p>No worker can write outside <code>/workspace</code> or escape the container. Resource caps (2 GB / 2 CPU) are enforced. Wall-clock timeout (10 min default) kills runaway workers.</p>
+  </div>
+
+  <div class="callout ok">
+    <span class="label">Criterion 5 — Cleanup</span>
+    <p>After a run (success or failure), no orphan containers remain. <code>docker ps -a --filter label=claudecat.session</code> returns empty (or only the current session).</p>
+  </div>
+
+  <div class="callout ok">
+    <span class="label">Criterion 6 — Verifiable failure</span>
+    <p>When a worker fails (intentionally induce by giving it an impossible task), the orchestrator exits with a clear error message and the project directory contains debuggable artifacts (logs + any partial handoff).</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     09 GOTCHAS
+     ============================================================ -->
+<section id="gotchas">
+  <h2><span class="num">09</span>Known Gotchas</h2>
+  <p class="section-lede">Traps documented in advance. Read these before debugging.</p>
+
+  <div class="callout">
+    <span class="label">Claude Code Auth</span>
+    <p>Claude Code inside the container authenticates via <code>ANTHROPIC_API_KEY</code> env var — <strong>not</strong> via OAuth / Claude Pro subscription. Subscription auth lives in <code>~/.claude/</code> on the host and is not container-portable. Users must bring their own API key.</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">Interactive Prompts</span>
+    <p>Claude Code sometimes prompts interactively (tool permission, destructive op confirmation). In a subprocess these hang forever. Mitigations in use: <code>--dangerously-skip-permissions</code> flag + non-interactive <code>-p</code> mode. If Claude Code adds new interactive prompts in future versions, workers will hang until timeout. Pin the Claude Code version in the Dockerfile once you find a stable one.</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">Docker Socket Mounting (future)</span>
+    <p>v0 does <em>not</em> mount <code>/var/run/docker.sock</code> into the project container. That means projects can't run their own <code>docker compose up</code> (for Postgres, etc.). When adding this, consider <code>tecnativa/docker-socket-proxy</code> to whitelist only safe API calls — raw socket access is root-equivalent to the host.</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">Bind-Mount Permissions on Linux</span>
+    <p>Container runs as UID 1000. If the host user is a different UID, files written by the container will be owned by the wrong user on the host. Fix: pass <code>--user $(id -u):$(id -g)</code> to the container and <code>chown</code> <code>/workspace</code> inside the entrypoint.</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">Shared-File Contention</span>
+    <p>When two workers run in parallel and both want to edit <code>package.json</code>, last-write-wins corrupts the project. Orchestrator rule (v1+): declare "shared files" in the plan, serialize access to them, parallelize everything else. Root configs (<code>package.json</code>, <code>docker-compose.yml</code>) are always serial; feature files are fair game to parallelize.</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">Container Startup Latency</span>
+    <p>Cold-start of the workspace container is 3–10 seconds. Noticeable to users watching a sleeping cat. Later: pre-warm a pool of one idle container; grab it when a project starts; refill in the background.</p>
+  </div>
+
+  <div class="callout">
+    <span class="label">Token Cost Surprise</span>
+    <p>An 8-worker project at 20 min each can burn $40. Always show a live token counter in the UI. Enforce <code>CLAUDECAT_BUDGET_USD</code>. Show the final spend after each run. Users tolerate expensive; they don't tolerate surprise.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     10 OUT OF SCOPE
+     ============================================================ -->
+<section id="notdoing">
+  <h2><span class="num">10</span>Explicitly Out of Scope for v0</h2>
+  <p class="section-lede">Things that are real, valuable, and <strong>not to be built yet</strong>. Resist the temptation.</p>
+  <table>
+    <thead><tr><th>Not doing</th><th>Why not yet</th></tr></thead>
+    <tbody>
+      <tr><td>LLM-driven planning / task DAG</td><td>Hardcoded plan proves the mechanism. DAG is a v1 bolt-on.</td></tr>
+      <tr><td>Parallel workers</td><td>Serial is simpler; parallel needs shared-file locking which is hard.</td></tr>
+      <tr><td>Skill marketplace / registry</td><td>Built-in cats must prove the bundle model before publishing matters.</td></tr>
+      <tr><td>Traefik preview-URL routing</td><td>Manual run is fine for a CLI POC. UI adds urgency later.</td></tr>
+      <tr><td>Electron UI / pixel cat</td><td>A separate milestone after the core loop is proven fun.</td></tr>
+      <tr><td>OAuth / subscription auth for Claude Code</td><td>API key flow is simpler and works today.</td></tr>
+      <tr><td>Multi-container projects (Postgres, Redis)</td><td>Docker-in-Docker / sibling containers need a security story first.</td></tr>
+      <tr><td>SQLite-backed project index</td><td>Filesystem is enough for &lt;100 projects. DB is a later optimization.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================
+     11 ROADMAP
+     ============================================================ -->
+<section id="roadmap">
+  <h2><span class="num">11</span>Roadmap After v0</h2>
+  <p class="section-lede">Rough ordering for what comes next. Each milestone is independently demo-able.</p>
+
+  <h3>Milestone 1 — Hardening (2–3 days)</h3>
+  <p>All P1 tasks: handoff shim, retries, budget, permissions. Goal: 10 consecutive successful runs on varied prompts.</p>
+
+  <h3>Milestone 2 — Skill Bundle Format (1 week)</h3>
+  <p>All P4 tasks: manifests, loader, composition checks. Migrate existing cats to bundle format. Add 3rd and 4th cats.</p>
+
+  <h3>Milestone 3 — Preview URLs + Multi-Container (1 week)</h3>
+  <p>Traefik setup, Docker Compose inside project container, sibling-container pattern. Projects can now spin up Postgres.</p>
+
+  <h3>Milestone 4 — Electron UI (2 weeks)</h3>
+  <p>All P5 tasks. Floating cat, office view, animated states. This is when the project becomes <em>shareable</em>.</p>
+
+  <h3>Milestone 5 — Marketplace + Signing (open-ended)</h3>
+  <p>Web registry, publisher verification, eval scores, permissions-at-install. Blocking issue: abuse prevention.</p>
+</section>
+
+<!-- ============================================================
+     12 REFERENCES
+     ============================================================ -->
+<section id="references">
+  <h2><span class="num">12</span>References</h2>
+  <p class="section-lede">Tools and docs the implementing agent will need.</p>
+  <ul>
+    <li><strong>Claude Code CLI</strong> — installed globally via <code>@anthropic-ai/claude-code</code>. Use <code>--help</code> inside the container to confirm flag names for your version.</li>
+    <li><strong>dockerode</strong> — Node Docker client (<code>npm:dockerode</code>). Docs: <a href="https://github.com/apocas/dockerode">github.com/apocas/dockerode</a></li>
+    <li><strong>chalk</strong> — terminal colors (ESM v5).</li>
+    <li><strong>ora</strong> — spinners (listed in deps; wire up if terminal UX needs it).</li>
+    <li><strong>dotenv</strong> — load <code>.env</code> at orchestrator startup.</li>
+    <li><strong>Anthropic API keys</strong> — <a href="https://console.anthropic.com/">console.anthropic.com</a></li>
+  </ul>
+
+  <h3>Related Prior Art (for context, not to copy)</h3>
+  <ul class="tight">
+    <li>CrewAI — multi-agent orchestration framework.</li>
+    <li>AutoGen (Microsoft) — agent conversation framework.</li>
+    <li>LangGraph — stateful multi-agent workflows.</li>
+    <li>Aider — AI pair programmer (different shape, similar Docker-sandbox lineage).</li>
+  </ul>
+
+  <p style="margin-top: 32px;">ClaudeCat's differentiator is not the orchestration pattern — it's the delight of the cat metaphor surfacing that pattern. Keep the whimsy. It's the product.</p>
+</section>
+
+<footer>
+  <span>ClaudeCat · Project Handoff · v0.1</span>
+  <span>🐱 zzz</span>
+</footer>
+
+</main>
+</body>
+</html>

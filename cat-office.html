@@ -1,0 +1,2306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cat Office</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --wood-dark: #3e2723;
+      --wood-mid: #5d4037;
+      --wood-light: #8d6e63;
+      --frame-dark: #1c1717;
+      --frame-mid: #4b3b38;
+      --steel: #333333;
+      --steel-light: #797979;
+      --hall-green: #1f4c45;
+      --hall-green-soft: #34645d;
+      --panel-cream: #f1d5b2;
+      --lamp: #ffd46b;
+      --signal-red: #e85353;
+      --signal-green: #63ff98;
+      --signal-blue: #64d8ff;
+      --monitor: #86fff6;
+      --pixel-shadow: 0 0 0 2px #140f0e, 0 0 0 4px #7a5547, 6px 6px 0 rgba(0, 0, 0, 0.38);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "VT323", monospace;
+      color: #fff4e6;
+      background:
+        radial-gradient(circle at top, rgba(117, 84, 63, 0.6), transparent 40%),
+        linear-gradient(180deg, #281d1d 0%, #161111 100%);
+      image-rendering: pixelated;
+      letter-spacing: 0.03em;
+    }
+
+    .scene-shell {
+      height: min(95vh, 930px);
+      min-height: 760px;
+    }
+
+    .stack-window {
+      background:
+        linear-gradient(180deg, rgba(255, 223, 190, 0.16), rgba(0, 0, 0, 0) 24px),
+        linear-gradient(180deg, #744f43 0, #5c4037 100%);
+      border: 2px solid #150f10;
+      box-shadow: var(--pixel-shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .stack-window::before,
+    .stack-window::after {
+      content: "";
+      position: absolute;
+      top: -10px;
+      width: 20px;
+      height: 16px;
+      background: linear-gradient(180deg, #8e6a61 0, #4b3432 100%);
+      border: 2px solid #150f10;
+      border-bottom: 0;
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      z-index: 2;
+      opacity: 0.95;
+    }
+
+    .stack-window::before {
+      left: 18px;
+    }
+
+    .stack-window::after {
+      left: 44px;
+    }
+
+    .titlebar {
+      height: 34px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      background:
+        linear-gradient(180deg, #54485a 0, #2a2129 100%);
+      border-bottom: 2px solid #130e10;
+      text-transform: uppercase;
+      font-size: clamp(1.1rem, 1.5vw, 1.55rem);
+      line-height: 1;
+      text-shadow: 2px 2px 0 #171114;
+    }
+
+    .titlebar-accent {
+      color: #8feaff;
+    }
+
+    .titlebar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #e5d1bb;
+      justify-content: flex-end;
+      white-space: nowrap;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border: 2px solid #130d0d;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08) inset;
+    }
+
+    .status-dot.green {
+      background: var(--signal-green);
+    }
+
+    .status-dot.red {
+      background: var(--signal-red);
+    }
+
+    .status-dot.blue {
+      background: var(--signal-blue);
+    }
+
+    .close-button {
+      min-width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #ff8888 0, #ab2323 100%);
+      color: #1f0303;
+      border: 2px solid #200606;
+      box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .lobby-body {
+      height: calc(100% - 34px);
+      position: relative;
+      overflow: hidden;
+      transition: filter 180ms steps(4, end), background 180ms steps(4, end);
+      background:
+        linear-gradient(180deg, rgba(255, 241, 214, 0.18), rgba(255, 241, 214, 0) 32%),
+        linear-gradient(180deg, #f0c79f 0 69%, #264650 69% 100%);
+    }
+
+    .lobby-body::before,
+    .room-body::before,
+    .audience-zone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.18;
+      background-image:
+        radial-gradient(circle at 14px 12px, rgba(63, 39, 35, 0.85) 0 4px, transparent 4.5px),
+        radial-gradient(circle at 7px 22px, rgba(63, 39, 35, 0.85) 0 3px, transparent 3.5px),
+        radial-gradient(circle at 14px 26px, rgba(63, 39, 35, 0.85) 0 3px, transparent 3.5px),
+        radial-gradient(circle at 21px 22px, rgba(63, 39, 35, 0.85) 0 3px, transparent 3.5px);
+      background-size: 88px 88px;
+      mix-blend-mode: multiply;
+    }
+
+    .lobby-body.empty {
+      filter: brightness(0.7) saturate(0.78);
+      background:
+        linear-gradient(180deg, rgba(130, 116, 108, 0.1), rgba(255, 241, 214, 0) 26%),
+        linear-gradient(180deg, #b18d77 0 69%, #1f3940 69% 100%);
+    }
+
+    .wall-stripe {
+      position: absolute;
+      inset: 0 0 31% 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 18px);
+      opacity: 0.38;
+      pointer-events: none;
+    }
+
+    .reception-desk {
+      position: absolute;
+      left: 7%;
+      bottom: 14%;
+      width: 31%;
+      height: 21%;
+      background: linear-gradient(180deg, #ae7b5f 0 24%, #7b5544 24% 100%);
+      border: 3px solid #38231e;
+      box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    .reception-desk::before,
+    .reception-desk::after {
+      content: "";
+      position: absolute;
+      top: -11px;
+      width: 18%;
+      height: 14px;
+      background: #d7a883;
+      border: 3px solid #38231e;
+    }
+
+    .reception-desk::before {
+      left: 8%;
+    }
+
+    .reception-desk::after {
+      right: 8%;
+    }
+
+    .sign {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid #261718;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .welcome-sign {
+      left: 10%;
+      top: 8%;
+      width: 20%;
+      height: 11%;
+      background: #3e8556;
+      font-size: clamp(0.9rem, 1.2vw, 1.2rem);
+    }
+
+    .office-sign {
+      left: 10%;
+      top: 20%;
+      width: 23%;
+      height: 17%;
+      background: #d7d0c8;
+      color: #3b2b29;
+      font-size: clamp(1.4rem, 2vw, 2rem);
+    }
+
+    .level-sign {
+      left: 37%;
+      top: 20%;
+      width: 18%;
+      height: 12%;
+      background: #2f4f5d;
+      font-size: clamp(1rem, 1.3vw, 1.25rem);
+    }
+
+    .frame-art,
+    .frame-small,
+    .window-tile {
+      position: absolute;
+      border: 3px solid #251717;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.14);
+      overflow: hidden;
+      background: #c7e7f5;
+    }
+
+    .frame-art {
+      left: 59%;
+      top: 18%;
+      width: 19%;
+      height: 16%;
+    }
+
+    .frame-art::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, #8ee7ff 0 52%, #4ca65e 52% 74%, #3d6649 74% 100%);
+    }
+
+    .frame-art::after {
+      content: "=\^.\_.\^=";
+      position: absolute;
+      right: 6%;
+      bottom: 4%;
+      color: #fff3dd;
+      font-size: 0.9rem;
+      text-shadow: 1px 1px 0 #20372d;
+    }
+
+    .frame-small {
+      left: 81%;
+      top: 19%;
+      width: 10%;
+      height: 11%;
+      background: #efebe1;
+    }
+
+    .frame-small::before,
+    .frame-small::after {
+      content: "";
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      height: 2px;
+      background: #6e625d;
+    }
+
+    .frame-small::before {
+      top: 32%;
+    }
+
+    .frame-small::after {
+      top: 58%;
+    }
+
+    .fishbone-plaque {
+      position: absolute;
+      right: 10%;
+      top: 34%;
+      width: 12%;
+      height: 7%;
+      background: #efe1c2;
+      border: 3px solid #38231e;
+      clip-path: polygon(0 50%, 12% 25%, 18% 38%, 64% 38%, 72% 18%, 100% 50%, 72% 82%, 64% 62%, 18% 62%, 12% 75%);
+      box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    .reception-monitor {
+      position: absolute;
+      left: 25%;
+      bottom: 31%;
+      width: 10%;
+      height: 17%;
+      background: #e8e8e8;
+      border: 3px solid #2d2423;
+    }
+
+    .reception-monitor.off {
+      background: #8d8782;
+    }
+
+    .reception-monitor::before {
+      content: "";
+      position: absolute;
+      inset: 13%;
+      background: linear-gradient(180deg, #c2fbf8 0, #4dc8d4 100%);
+      box-shadow: 0 0 10px rgba(130, 255, 243, 0.45);
+    }
+
+    .reception-monitor.off::before {
+      background: linear-gradient(180deg, #707679 0, #353f45 100%);
+      box-shadow: none;
+      opacity: 0.4;
+    }
+
+    .reception-monitor::after {
+      content: "";
+      position: absolute;
+      left: 40%;
+      right: 40%;
+      bottom: -18%;
+      height: 22%;
+      background: #b6b6b6;
+      border: 2px solid #2d2423;
+    }
+
+    .station-sprite {
+      position: absolute;
+      background-repeat: no-repeat;
+      background-position: 0 0;
+      background-size: 200% 200%;
+      aspect-ratio: var(--sprite-aspect, 1 / 1);
+      image-rendering: pixelated;
+      filter: drop-shadow(6px 8px 0 rgba(0, 0, 0, 0.22));
+      opacity: 0;
+      transition: opacity 140ms steps(2, end);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .station-sprite.ready {
+      opacity: 1;
+    }
+
+    .station-sprite.sheet {
+      --sprite-aspect: 1005 / 1024;
+      animation: spriteSheet2x2 1s steps(1, end) infinite;
+    }
+
+    .station-sprite.single {
+      --sprite-aspect: 1018 / 1024;
+      animation: none;
+      background-size: contain;
+      background-position: center bottom;
+    }
+
+    .main-office-station {
+      left: 4%;
+      bottom: 8%;
+      width: 39%;
+    }
+
+    .armchair {
+      position: absolute;
+      width: 11%;
+      height: 16%;
+      background: linear-gradient(180deg, #bb7f5c 0 40%, #84553d 40% 100%);
+      border: 3px solid #39221d;
+      bottom: 12%;
+    }
+
+    .armchair::before {
+      content: "";
+      position: absolute;
+      inset: 16% 18% 34% 18%;
+      border: 2px solid rgba(0, 0, 0, 0.35);
+      background: rgba(255, 233, 215, 0.12);
+    }
+
+    .armchair.one {
+      left: 58%;
+    }
+
+    .armchair.two {
+      left: 71%;
+    }
+
+    .plant {
+      position: absolute;
+      width: 10%;
+      height: 20%;
+    }
+
+    .plant .pot {
+      position: absolute;
+      left: 18%;
+      right: 18%;
+      bottom: 0;
+      height: 28%;
+      background: linear-gradient(180deg, #b18c69, #885f44);
+      border: 3px solid #3a241f;
+    }
+
+    .plant .leaf {
+      position: absolute;
+      width: 28%;
+      height: 48%;
+      border: 3px solid #214233;
+      background: linear-gradient(180deg, #78d97c, #2f7d4a);
+      border-radius: 50% 50% 0 50%;
+      transform-origin: bottom center;
+    }
+
+    .plant .leaf.a {
+      left: 7%;
+      bottom: 24%;
+      transform: rotate(-22deg);
+    }
+
+    .plant .leaf.b {
+      left: 36%;
+      bottom: 32%;
+    }
+
+    .plant .leaf.c {
+      right: 5%;
+      bottom: 27%;
+      transform: rotate(22deg) scaleX(-1);
+    }
+
+    .plant.small {
+      left: 1.5%;
+      bottom: 9%;
+    }
+
+    .plant.medium {
+      left: 42%;
+      bottom: 10%;
+      width: 9%;
+      height: 18%;
+    }
+
+    .plant.tall {
+      right: 5%;
+      bottom: 7%;
+      width: 12%;
+      height: 28%;
+    }
+
+    .yarn-ball {
+      position: absolute;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 35%, #ffd7e5 0 18%, #d86d93 19% 100%);
+      border: 3px solid #58253d;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    .yarn-ball::before,
+    .yarn-ball::after {
+      content: "";
+      position: absolute;
+      inset: 22%;
+      border: 2px solid rgba(255, 232, 240, 0.65);
+      border-radius: 50%;
+    }
+
+    .yarn-ball::after {
+      inset: 10% 30% 36% 14%;
+      border-color: rgba(109, 17, 52, 0.45);
+    }
+
+    .yarn-ball.lobby {
+      left: 53%;
+      bottom: 14%;
+      width: 6%;
+      aspect-ratio: 1;
+    }
+
+    .treat-jar {
+      position: absolute;
+      left: 47%;
+      top: 17%;
+      width: 9%;
+      height: 11%;
+      border: 3px solid #39221d;
+      background:
+        linear-gradient(180deg, rgba(211, 243, 255, 0.88), rgba(134, 198, 214, 0.85));
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.14);
+    }
+
+    .treat-jar::before {
+      content: "";
+      position: absolute;
+      left: 16%;
+      right: 16%;
+      top: -16%;
+      height: 20%;
+      background: #664942;
+      border: 3px solid #281718;
+    }
+
+    .treat-jar::after {
+      content: "TREATS";
+      position: absolute;
+      inset: 34% 10% auto;
+      color: #3a2a26;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .room-stack {
+      display: grid;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .room-body {
+      position: relative;
+      height: calc(100% - 34px);
+      overflow: hidden;
+      transition: filter 180ms steps(4, end), background 180ms steps(4, end);
+      background:
+        linear-gradient(180deg, rgba(255, 242, 219, 0.2), rgba(255, 242, 219, 0) 28%),
+        linear-gradient(180deg, #906050 0 63%, #5e3f35 63% 100%);
+    }
+
+    .room-body.empty {
+      filter: brightness(0.63) saturate(0.8);
+      background:
+        linear-gradient(180deg, rgba(118, 100, 93, 0.18), rgba(255, 242, 219, 0) 20%),
+        linear-gradient(180deg, #74584f 0 63%, #46312b 63% 100%);
+    }
+
+    .room-body::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, transparent 0 64%, rgba(20, 10, 8, 0.1) 64% 66%, transparent 66%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 26px);
+      pointer-events: none;
+    }
+
+    .room-window {
+      position: absolute;
+      left: 6%;
+      top: 15%;
+      width: 24%;
+      height: 34%;
+      border: 3px solid #2b1b18;
+      background:
+        linear-gradient(180deg, #95d8ff 0 56%, #4c8cb9 56% 58%, #2c3d68 58% 100%);
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    .room-window::before,
+    .room-window::after {
+      content: "";
+      position: absolute;
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    .room-window::before {
+      left: 48%;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+    }
+
+    .room-window::after {
+      top: 48%;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .side-cabinet {
+      position: absolute;
+      left: 8%;
+      bottom: 9%;
+      width: 15%;
+      height: 22%;
+      background: linear-gradient(180deg, #b58366 0 30%, #7a5647 30% 100%);
+      border: 3px solid #3d2621;
+    }
+
+    .side-cabinet::before {
+      content: "";
+      position: absolute;
+      inset: 18% 18% auto 18%;
+      height: 3px;
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .desk-pod {
+      position: absolute;
+      right: 11%;
+      bottom: 12%;
+      width: 34%;
+      height: 24%;
+      background: linear-gradient(180deg, #bb8a6a 0 28%, #8a614e 28% 100%);
+      border: 3px solid #372320;
+      box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.16);
+    }
+
+    .desk-pod::before,
+    .desk-pod::after {
+      content: "";
+      position: absolute;
+      bottom: -14%;
+      width: 10%;
+      height: 18%;
+      background: #573b32;
+      border: 2px solid #2a1a18;
+    }
+
+    .desk-pod::before {
+      left: 14%;
+    }
+
+    .desk-pod::after {
+      right: 14%;
+    }
+
+    .room-monitor {
+      position: absolute;
+      right: 21%;
+      bottom: 35%;
+      width: 15%;
+      height: 20%;
+      background: #d5d9dc;
+      border: 3px solid #2c2422;
+    }
+
+    .room-monitor.off {
+      background: #8f9396;
+    }
+
+    .room-monitor::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      background: linear-gradient(180deg, #97f8ff 0, #45b5d6 100%);
+      opacity: 0.28;
+    }
+
+    .room-monitor.off::before {
+      background: linear-gradient(180deg, #717679 0, #334047 100%);
+      opacity: 0.16;
+      box-shadow: none;
+    }
+
+    .room-monitor.live::before {
+      opacity: 1;
+      box-shadow: 0 0 10px rgba(128, 255, 247, 0.5);
+      animation: monitorPulse 1.8s steps(3, end) infinite;
+    }
+
+    .desk-lamp {
+      position: absolute;
+      right: 6%;
+      bottom: 27%;
+      width: 10%;
+      height: 26%;
+    }
+
+    .desk-lamp::before {
+      content: "";
+      position: absolute;
+      left: 38%;
+      bottom: 0;
+      width: 22%;
+      height: 60%;
+      background: #5f5d61;
+      border: 2px solid #231a1a;
+    }
+
+    .desk-lamp::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 38%;
+      background: linear-gradient(180deg, #fff1b8 0, #e8b657 100%);
+      border: 3px solid #423015;
+      clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%);
+      box-shadow: 0 0 18px rgba(255, 221, 124, 0.28);
+    }
+
+    .desk-lamp.off::after {
+      background: linear-gradient(180deg, #9a865d 0, #75572d 100%);
+      box-shadow: none;
+      filter: brightness(0.72);
+    }
+
+    .door-panel {
+      position: absolute;
+      left: 38%;
+      bottom: 0;
+      width: 16%;
+      height: 72%;
+      background: linear-gradient(180deg, #563732 0, #3d2723 100%);
+      border-left: 3px solid #1e1313;
+      border-right: 3px solid #1e1313;
+    }
+
+    .door-tag {
+      position: absolute;
+      left: 34%;
+      top: 9%;
+      min-width: 22%;
+      height: 12%;
+      padding: 0 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #1d2725;
+      color: #8cffab;
+      border: 3px solid #271818;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+      text-transform: uppercase;
+      font-size: clamp(0.95rem, 1.15vw, 1.1rem);
+    }
+
+    .door-glow {
+      position: absolute;
+      left: 48%;
+      bottom: 18%;
+      width: 12px;
+      height: 18px;
+      background: linear-gradient(180deg, #7efdfc, #19c3e5);
+      clip-path: polygon(0 50%, 55% 0, 100% 28%, 45% 100%);
+      box-shadow: 0 0 12px rgba(71, 236, 255, 0.7);
+    }
+
+    .door-glow.off {
+      background: linear-gradient(180deg, #5a696d, #24414a);
+      box-shadow: none;
+      opacity: 0.45;
+    }
+
+    .wall-art {
+      position: absolute;
+      right: 8%;
+      top: 12%;
+      width: 18%;
+      height: 13%;
+      border: 3px solid #241716;
+      background:
+        linear-gradient(180deg, #61b4ff 0 48%, #78ca73 48% 100%);
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    .wall-art::after {
+      content: "MEOW";
+      position: absolute;
+      right: 8%;
+      bottom: 4%;
+      color: #fff4da;
+      font-size: 0.82rem;
+      text-shadow: 1px 1px 0 #24402f;
+    }
+
+    .room-plant {
+      position: absolute;
+      right: 2%;
+      bottom: 8%;
+      width: 12%;
+      height: 24%;
+    }
+
+    .room-plant .pot {
+      height: 24%;
+    }
+
+    .room-worker {
+      position: absolute;
+      right: 16%;
+      bottom: 19%;
+      width: 16%;
+      height: 36%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .room-worker .pixel-cat {
+      width: 100%;
+      height: 100%;
+    }
+
+    .room-station {
+      right: 6%;
+      bottom: 8%;
+      width: 31%;
+    }
+
+    .pixel-cat {
+      animation: catBob 1.25s steps(3, end) infinite;
+      transform-origin: center bottom;
+    }
+
+    .pixel-cat.slow {
+      animation-duration: 1.7s;
+    }
+
+    .pixel-cat.tiny {
+      animation-duration: 1.1s;
+    }
+
+    .cat-shadow {
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      width: 56%;
+      height: 10%;
+      background: rgba(0, 0, 0, 0.25);
+      transform: translateX(-50%);
+      filter: blur(2px);
+    }
+
+    .hall-body {
+      position: relative;
+      height: calc(100% - 34px);
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255, 235, 201, 0.12), rgba(0, 0, 0, 0) 26%),
+        linear-gradient(180deg, #7f594a 0 17%, #704d40 17% 26%, #865b47 26% 64%, #794f3d 64% 100%);
+    }
+
+    .hall-body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 2px, transparent 2px 52px),
+        linear-gradient(180deg, transparent 0 63%, rgba(0, 0, 0, 0.18) 63% 65%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hall-body::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(20, 12, 14, 0.48), rgba(14, 10, 11, 0.58)),
+        radial-gradient(circle at 50% 16%, rgba(255, 214, 132, 0.1), transparent 34%);
+      opacity: 0;
+      transition: opacity 180ms steps(4, end);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .hall-off {
+      filter: none;
+    }
+
+    .hall-on {
+      filter: brightness(1.05) saturate(1.08);
+    }
+
+    .hall-off::after {
+      opacity: 1;
+    }
+
+    .wood-beam {
+      position: absolute;
+      top: 0;
+      width: 10px;
+      height: 47%;
+      background: linear-gradient(180deg, #8f604c 0, #4c2f28 100%);
+      border-left: 2px solid #301d1a;
+      border-right: 2px solid #301d1a;
+      transform-origin: top center;
+    }
+
+    .wood-beam.left {
+      left: 8%;
+      transform: skewX(-28deg);
+    }
+
+    .wood-beam.right {
+      right: 8%;
+      transform: skewX(28deg);
+    }
+
+    .wood-pillar {
+      position: absolute;
+      top: 12%;
+      bottom: 0;
+      width: 22px;
+      background:
+        linear-gradient(90deg, #3f241f 0 18%, #84553f 18% 68%, #4d2d26 68% 100%);
+      border-left: 2px solid #1f1210;
+      border-right: 2px solid #1f1210;
+    }
+
+    .wood-pillar.left {
+      left: 2.4%;
+    }
+
+    .wood-pillar.right {
+      right: 2.4%;
+    }
+
+    .hanging-lamp {
+      position: absolute;
+      top: 10%;
+      width: 42px;
+      height: 80px;
+      z-index: 4;
+    }
+
+    .hanging-lamp::before {
+      content: "";
+      position: absolute;
+      left: 48%;
+      top: 0;
+      width: 4px;
+      height: 32px;
+      transform: translateX(-50%);
+      background: #221515;
+    }
+
+    .hanging-lamp::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 28px;
+      height: 28px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff7c5 0 20%, #ffd873 20% 62%, #b16b2d 62% 100%);
+      border: 3px solid #483120;
+      box-shadow: 0 0 24px rgba(255, 209, 101, 0.44);
+    }
+
+    .hanging-lamp.left {
+      left: 6%;
+    }
+
+    .hanging-lamp.right {
+      right: 6%;
+    }
+
+    .side-plant {
+      position: absolute;
+      bottom: 4%;
+      width: 11%;
+      height: 22%;
+      z-index: 1;
+    }
+
+    .side-plant.left {
+      left: 4%;
+    }
+
+    .side-plant.right {
+      right: 4%;
+    }
+
+    .hall-desk {
+      position: absolute;
+      top: 32%;
+      width: 11%;
+      height: 18%;
+      background: linear-gradient(180deg, #bb8b69 0 26%, #7d5745 26% 100%);
+      border: 3px solid #36221f;
+    }
+
+    .hall-desk.left {
+      left: 6%;
+    }
+
+    .hall-desk.right {
+      right: 6%;
+    }
+
+    .hall-desk::before {
+      content: "";
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      top: -18%;
+      height: 16%;
+      background: #d1a37e;
+      border: 3px solid #36221f;
+    }
+
+    .hall-monitor {
+      position: absolute;
+      top: -42%;
+      left: 38%;
+      width: 24%;
+      height: 34%;
+      background: #c8cecf;
+      border: 3px solid #2d2220;
+    }
+
+    .hall-monitor::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      background: linear-gradient(180deg, #a6fcff, #4fc3d0);
+      box-shadow: 0 0 10px rgba(122, 255, 243, 0.4);
+    }
+
+    .hall-monitor::after {
+      content: "";
+      position: absolute;
+      left: 40%;
+      right: 40%;
+      bottom: -18%;
+      height: 18%;
+      background: #aeb4b7;
+      border: 2px solid #2d2220;
+    }
+
+    .side-cat {
+      position: absolute;
+      width: 7%;
+      height: 14%;
+      top: 29%;
+      z-index: 2;
+    }
+
+    .side-cat.left {
+      left: 7%;
+    }
+
+    .side-cat.right {
+      right: 7%;
+    }
+
+    .hall-side-station {
+      top: 24%;
+      width: 12.5%;
+      z-index: 1;
+    }
+
+    .hall-side-station.left {
+      left: 4%;
+    }
+
+    .hall-side-station.right {
+      right: 4%;
+      transform: scaleX(-1);
+      transform-origin: center;
+    }
+
+    .projector-rig {
+      position: absolute;
+      left: 17%;
+      right: 17%;
+      top: 3%;
+      height: 9%;
+      background: linear-gradient(180deg, #adb7bd 0 26%, #7c8b93 26% 54%, #5c6168 54% 100%);
+      border: 3px solid #243137;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
+      z-index: 4;
+    }
+
+    .projector-rig::after {
+      content: "CATVISION";
+      position: absolute;
+      left: 50%;
+      top: 20%;
+      transform: translateX(-50%);
+      color: #21353c;
+      font-size: clamp(1rem, 1.15vw, 1.15rem);
+      letter-spacing: 0.08em;
+    }
+
+    .projector-rig::before,
+    .projector-rig::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      width: 4px;
+      height: 22px;
+      background: #20272d;
+    }
+
+    .projector-rig::before {
+      left: 10%;
+    }
+
+    .projector-rig::after {
+      right: 10%;
+    }
+
+    .screen-wrap {
+      position: absolute;
+      left: 15%;
+      right: 15%;
+      top: 10.5%;
+      height: 53%;
+      padding: 1.2%;
+      background: linear-gradient(180deg, #dde7ed, #9eb6bf);
+      border: 4px solid #203037;
+      box-shadow:
+        0 0 0 4px rgba(17, 24, 28, 0.55),
+        0 10px 30px rgba(0, 0, 0, 0.35);
+      z-index: 4;
+    }
+
+    .screen-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #dffcff;
+      overflow: hidden;
+      border: 3px solid #0f2a31;
+    }
+
+    .screen-inner.standby {
+      background:
+        linear-gradient(180deg, #b8b8b5 0, #8e8e8a 58%, #595a58 100%);
+    }
+
+    .screen-toolbar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 12%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      background: linear-gradient(180deg, #edf1f4, #c2d2db);
+      border-bottom: 2px solid rgba(12, 34, 40, 0.18);
+      z-index: 2;
+      color: #274854;
+      font-size: clamp(0.95rem, 1.2vw, 1.15rem);
+    }
+
+    .chrome-dot {
+      width: 8px;
+      height: 8px;
+      background: #7ea6b5;
+      border: 1px solid #31505b;
+    }
+
+    .address-bar {
+      flex: 1;
+      height: 62%;
+      display: flex;
+      align-items: center;
+      background: #f8ffff;
+      border: 2px solid #7ea0ae;
+      padding: 0 8px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .screen-iframe {
+      position: absolute;
+      inset: 12% 0 0 0;
+      width: 100%;
+      height: 88%;
+      border: 0;
+      background: #ffffff;
+    }
+
+    .screen-iframe.blanked {
+      opacity: 0;
+    }
+
+    .screen-overlay {
+      position: absolute;
+      inset: 12% 0 0 0;
+      z-index: 3;
+      background:
+        linear-gradient(180deg, rgba(214, 214, 210, 0.16), rgba(88, 89, 88, 0.2)),
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0 3px, rgba(0, 0, 0, 0.03) 3px 8px);
+    }
+
+    .screen-overlay.hidden {
+      display: none;
+    }
+
+    .screen-loading {
+      position: absolute;
+      inset: 12% 0 0 0;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(20, 50, 55, 0.92), rgba(10, 18, 20, 0.96));
+      color: #8feaff;
+      font-size: clamp(1.2rem, 1.6vw, 1.6rem);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      gap: 12px;
+    }
+
+    .screen-loading.hidden {
+      display: none;
+    }
+
+    .loading-dots::after {
+      content: "";
+      animation: loadDots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes loadDots {
+      0%   { content: ""; }
+      25%  { content: "."; }
+      50%  { content: ".."; }
+      75%  { content: "..."; }
+    }
+
+    .loading-bar {
+      width: 40%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid #1a3d3a;
+      overflow: hidden;
+    }
+
+    .loading-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #63ff98, #8feaff);
+      transition: width 3.2s steps(12, end);
+    }
+
+    .screen-foot {
+      position: absolute;
+      left: 50%;
+      bottom: -4%;
+      transform: translateX(-50%);
+      width: 12%;
+      height: 6%;
+      background: linear-gradient(180deg, #6f848e, #38484f);
+      border: 3px solid #223137;
+    }
+
+    .audience-zone {
+      position: absolute;
+      left: 18%;
+      right: 18%;
+      bottom: 7%;
+      height: 23%;
+      padding: 2.4% 4.5%;
+      background:
+        linear-gradient(180deg, #28635b 0, #214b45 100%);
+      border: 4px solid #19352f;
+      box-shadow:
+        inset 0 0 0 3px rgba(255, 255, 255, 0.08),
+        0 0 0 4px rgba(40, 18, 14, 0.38);
+    }
+
+    .catwalk-tag {
+      position: absolute;
+      left: 50%;
+      top: -16px;
+      transform: translateX(-50%);
+      padding: 2px 10px;
+      background: #201416;
+      border: 2px solid #eed8bc33;
+      color: #ffdcb2;
+      text-transform: uppercase;
+      font-size: 0.95rem;
+      z-index: 2;
+    }
+
+    .audience-grid {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 6px 14px;
+      align-content: end;
+      justify-items: center;
+    }
+
+    .audience-seat {
+      position: relative;
+      width: clamp(32px, 3vw, 44px);
+      height: clamp(44px, 4.4vw, 56px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .chair-back {
+      position: absolute;
+      left: 50%;
+      bottom: 12%;
+      width: 72%;
+      height: 44%;
+      transform: translateX(-50%);
+      border: 3px solid #2c1816;
+      background: linear-gradient(180deg, var(--chair-a, #c3814d) 0, var(--chair-b, #824736) 100%);
+      border-radius: 6px 6px 2px 2px;
+    }
+
+    .chair-base {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 72%;
+      height: 19%;
+      transform: translateX(-50%);
+      border: 3px solid #2c1816;
+      background: linear-gradient(180deg, var(--chair-c, #c3a24d) 0, var(--chair-d, #7d6531) 100%);
+    }
+
+    .chair-base::before,
+    .chair-base::after {
+      content: "";
+      position: absolute;
+      bottom: -48%;
+      width: 8%;
+      height: 52%;
+      background: #2c1816;
+    }
+
+    .chair-base::before {
+      left: 20%;
+    }
+
+    .chair-base::after {
+      right: 20%;
+    }
+
+    .audience-seat .pixel-cat {
+      position: absolute;
+      left: 50%;
+      bottom: 16%;
+      width: 80%;
+      height: 70%;
+      transform: translateX(-50%);
+      z-index: 2;
+    }
+
+    .sys-strip {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      background: rgba(19, 12, 13, 0.72);
+      border: 2px solid rgba(255, 227, 193, 0.14);
+      font-size: clamp(0.95rem, 1vw, 1.1rem);
+      text-transform: uppercase;
+      color: #f7dcc2;
+      z-index: 5;
+    }
+
+    .system-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .mini-led {
+      width: 9px;
+      height: 9px;
+      border: 2px solid #1a0f10;
+      background: #57403c;
+    }
+
+    .mini-led.on {
+      background: var(--signal-green);
+      box-shadow: 0 0 12px rgba(99, 255, 152, 0.45);
+    }
+
+    .mini-led.warn {
+      background: var(--signal-red);
+      box-shadow: 0 0 12px rgba(232, 83, 83, 0.38);
+    }
+
+    @keyframes catBob {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-3px);
+      }
+    }
+
+    @keyframes monitorPulse {
+      0%,
+      100% {
+        filter: brightness(1);
+      }
+
+      50% {
+        filter: brightness(1.18);
+      }
+    }
+
+    @keyframes spriteSheet2x2 {
+      0%,
+      24.99% {
+        background-position: 0% 0%;
+      }
+
+      25%,
+      49.99% {
+        background-position: 100% 0%;
+      }
+
+      50%,
+      74.99% {
+        background-position: 0% 100%;
+      }
+
+      75%,
+      100% {
+        background-position: 100% 100%;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .scene-shell {
+        height: auto;
+        min-height: auto;
+      }
+
+      .hall-body,
+      .lobby-body,
+      .room-body {
+        min-height: 260px;
+      }
+
+      .room-stack {
+        grid-template-rows: repeat(3, minmax(240px, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .titlebar {
+        font-size: 1rem;
+        gap: 6px;
+      }
+
+      .titlebar-right {
+        gap: 5px;
+        font-size: 0.92rem;
+      }
+
+      .sys-strip {
+        flex-wrap: wrap;
+      }
+
+      .audience-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: repeat(4, minmax(0, 1fr));
+      }
+
+      .screen-wrap {
+        left: 7%;
+        right: 7%;
+      }
+
+      .projector-rig {
+        left: 7%;
+        right: 7%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen px-3 py-4 sm:px-4 sm:py-5">
+    <div class="scene-shell mx-auto flex w-full max-w-[1600px] flex-col gap-3 lg:flex-row">
+      <section class="flex min-h-0 flex-col gap-3 lg:w-1/4">
+        <article class="stack-window h-[28%] min-h-[210px]">
+          <div class="titlebar">
+            <span>orchestrator-kitty (lead kitty)</span>
+            <div class="titlebar-right">
+              <span class="status-row">
+                <span class="status-dot green"></span>
+                <span>Purr Lobby</span>
+              </span>
+            </div>
+            <span class="close-button">X</span>
+          </div>
+          <div class="lobby-body">
+            <div class="wall-stripe"></div>
+            <div class="sign welcome-sign">Purrcome</div>
+            <div class="sign office-sign">Cat HQ</div>
+            <div class="sign level-sign">Whisker Wing</div>
+            <div class="frame-art"></div>
+            <div class="frame-small"></div>
+            <div class="fishbone-plaque"></div>
+            <div class="treat-jar"></div>
+            <div class="armchair one"></div>
+            <div class="armchair two"></div>
+
+            <div class="plant small">
+              <div class="leaf a"></div>
+              <div class="leaf b"></div>
+              <div class="leaf c"></div>
+              <div class="pot"></div>
+            </div>
+            <div class="plant medium">
+              <div class="leaf a"></div>
+              <div class="leaf b"></div>
+              <div class="leaf c"></div>
+              <div class="pot"></div>
+            </div>
+            <div class="plant tall">
+              <div class="leaf a"></div>
+              <div class="leaf b"></div>
+              <div class="leaf c"></div>
+              <div class="pot"></div>
+            </div>
+            <div class="yarn-ball lobby"></div>
+            <div
+              id="mainOfficeStation"
+              class="station-sprite main-office-station"
+              data-sprite="desk"
+              data-sprite-type="single"
+            ></div>
+          </div>
+        </article>
+
+        <section class="min-h-0 flex-1">
+          <div id="roomStack" class="room-stack"></div>
+        </section>
+      </section>
+
+      <section class="min-h-0 lg:w-3/4">
+        <article id="hallWindow" class="stack-window h-full min-h-[520px]">
+          <div class="titlebar">
+            <span>Main Catference Hall</span>
+            <div class="titlebar-right">
+              <span class="status-row">
+                <span id="hallStatusLed" class="status-dot red"></span>
+                <span id="hallStatusText">Catnap Standby</span>
+              </span>
+              <span id="hallUrlLabel" class="titlebar-accent"></span>
+            </div>
+            <span class="close-button">X</span>
+          </div>
+
+          <div id="hallBody" class="hall-body hall-off">
+            <div class="wood-pillar left"></div>
+            <div class="wood-pillar right"></div>
+            <div class="wood-beam left"></div>
+            <div class="wood-beam right"></div>
+            <div class="hanging-lamp left"></div>
+            <div class="hanging-lamp right"></div>
+
+            <div
+              id="leftHallStation"
+              class="station-sprite hall-side-station left"
+              data-sprite="desk"
+              data-sprite-type="single"
+            ></div>
+            <div
+              id="rightHallStation"
+              class="station-sprite hall-side-station right"
+              data-sprite="desk"
+              data-sprite-type="single"
+            ></div>
+
+            <div class="side-plant left plant">
+              <div class="leaf a"></div>
+              <div class="leaf b"></div>
+              <div class="leaf c"></div>
+              <div class="pot"></div>
+            </div>
+            <div class="side-plant right plant">
+              <div class="leaf a"></div>
+              <div class="leaf b"></div>
+              <div class="leaf c"></div>
+              <div class="pot"></div>
+            </div>
+
+            <div class="projector-rig"></div>
+            <div class="screen-wrap">
+              <div class="screen-inner">
+                <div class="screen-toolbar">
+                  <span class="chrome-dot"></span>
+                  <span class="chrome-dot"></span>
+                  <span class="chrome-dot"></span>
+                  <div id="screenAddress" class="address-bar">standby://conference.screen</div>
+                </div>
+                <iframe
+                  id="conferenceIframe"
+                  class="screen-iframe"
+                  title="Conference Hall Screen"
+                  src="about:blank"
+                  loading="lazy"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  referrerpolicy="no-referrer"
+                ></iframe>
+                <div id="screenOverlay" class="screen-overlay"></div>
+                <div id="screenLoading" class="screen-loading hidden">
+                  <span class="loading-dots">Demo Starting</span>
+                  <div class="loading-bar"><div id="loadingBarFill" class="loading-bar-fill"></div></div>
+                </div>
+              </div>
+              <div class="screen-foot"></div>
+            </div>
+
+            <div class="audience-zone">
+              <div class="catwalk-tag">Whisker Watch</div>
+              <div id="audienceGrid" class="audience-grid"></div>
+            </div>
+
+            <div class="sys-strip">
+              <span class="system-chip">
+                <span id="checksumLed" class="mini-led warn"></span>
+                <span>Pawsum <span id="checksumValue">000</span></span>
+              </span>
+              <span class="system-chip">
+                <span id="workerLed" class="mini-led warn"></span>
+                <span>Active Cats <span id="workerValue">0/4</span></span>
+              </span>
+              <span class="system-chip">
+                <span id="urlLed" class="mini-led warn"></span>
+                <span>Catcast URL <span id="urlValue">OFF</span></span>
+              </span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <!-- Build input bar -->
+    <div class="mx-auto mt-3 flex w-full max-w-[1600px] gap-2" style="font-family:'VT323',monospace">
+      <input
+        id="goalInput"
+        type="text"
+        placeholder="What should the cats build? e.g. &quot;a todo app&quot;"
+        style="
+          flex:1; padding:10px 14px; font-size:1.2rem; font-family:inherit;
+          background:#1a1715; color:#ffe4c4; border:2px solid #4b3432;
+          outline:none; letter-spacing:0.03em;
+        "
+      />
+      <button
+        id="buildBtn"
+        onclick="startBuild()"
+        style="
+          padding:10px 22px; font-size:1.2rem; font-family:inherit;
+          background:linear-gradient(180deg,#3e8556,#2a5e3b); color:#d4ffd8;
+          border:2px solid #1a3d24; cursor:pointer; text-transform:uppercase;
+          letter-spacing:0.08em;
+        "
+      >Build</button>
+    </div>
+
+    <!-- Status log -->
+    <div
+      id="buildLog"
+      class="mx-auto mt-2 w-full max-w-[1600px]"
+      style="
+        font-family:'VT323',monospace; font-size:1rem; color:#a8a395;
+        background:#121210; border:2px solid #2e2e2a; padding:10px 14px;
+        max-height:120px; overflow-y:auto; display:none;
+      "
+    ></div>
+  </div>
+
+  <script>
+    const palettes = {
+      orange: {
+        fur: "#df9452",
+        belly: "#f7d19b",
+        stripe: "#b55e31",
+        innerEar: "#f7b98e",
+        accent: "#4b2d2d"
+      },
+      grey: {
+        fur: "#9ea8af",
+        belly: "#d9dde0",
+        stripe: "#6d757f",
+        innerEar: "#d2aab4",
+        accent: "#324451"
+      },
+      calico: {
+        fur: "#f0d6b4",
+        belly: "#fff2d8",
+        stripe: "#c56f3f",
+        innerEar: "#ebb4a9",
+        accent: "#3d2f2d"
+      },
+      tux: {
+        fur: "#474548",
+        belly: "#f0f0f0",
+        stripe: "#6a5668",
+        innerEar: "#d9afb8",
+        accent: "#6f9fdb"
+      }
+    };
+
+    const roomThemes = [
+      { id: 2, label: "manager-kitty", artLeft: 11, plant: true, sprite: "cat2" },
+      { id: 3, label: "coder-kitty", artLeft: 6, plant: false, sprite: "cat3" },
+      { id: 4, label: "devops-kitty", artLeft: 10, plant: true, sprite: "cat3" }
+    ];
+
+    const spriteSources = {
+      cat1: "stripes/working-cats/cat1.png",
+      cat2: "stripes/working-cats/cat2.png",
+      cat3: "stripes/working-cats/cat3.png",
+      desk: "stripes/desk/image.png"
+    };
+
+    const processedSpriteCache = new Map();
+
+    function catSVG(kind, paletteName, direction = "right") {
+      const palette = palettes[paletteName] || palettes.orange;
+      const flip = direction === "left" ? "translate(64 0) scale(-1 1)" : "";
+
+      if (kind === "back") {
+        return `
+          <svg viewBox="0 0 64 64" aria-hidden="true" shape-rendering="crispEdges">
+            <g transform="${flip}">
+              <rect x="18" y="8" width="8" height="8" fill="${palette.fur}" />
+              <rect x="38" y="8" width="8" height="8" fill="${palette.fur}" />
+              <rect x="22" y="12" width="20" height="14" fill="${palette.fur}" />
+              <rect x="26" y="18" width="12" height="6" fill="${palette.stripe}" />
+              <rect x="18" y="28" width="28" height="20" fill="${palette.fur}" />
+              <rect x="22" y="30" width="20" height="14" fill="${palette.belly}" opacity="0.4" />
+              <rect x="14" y="32" width="4" height="14" fill="${palette.fur}" />
+              <rect x="46" y="32" width="4" height="14" fill="${palette.fur}" />
+              <rect x="22" y="48" width="6" height="10" fill="${palette.fur}" />
+              <rect x="36" y="48" width="6" height="10" fill="${palette.fur}" />
+              <rect x="47" y="42" width="8" height="4" fill="${palette.stripe}" />
+              <rect x="51" y="38" width="4" height="8" fill="${palette.stripe}" />
+            </g>
+          </svg>
+        `;
+      }
+
+      if (kind === "walk") {
+        return `
+          <svg viewBox="0 0 64 64" aria-hidden="true" shape-rendering="crispEdges">
+            <g transform="${flip}">
+              <rect x="14" y="20" width="8" height="8" fill="${palette.fur}" />
+              <rect x="30" y="20" width="8" height="8" fill="${palette.fur}" />
+              <rect x="18" y="24" width="20" height="12" fill="${palette.fur}" />
+              <rect x="22" y="28" width="4" height="4" fill="#1f1715" />
+              <rect x="30" y="28" width="4" height="4" fill="#1f1715" />
+              <rect x="17" y="38" width="24" height="10" fill="${palette.fur}" />
+              <rect x="22" y="40" width="12" height="6" fill="${palette.stripe}" />
+              <rect x="16" y="48" width="5" height="10" fill="${palette.fur}" />
+              <rect x="28" y="48" width="5" height="10" fill="${palette.fur}" />
+              <rect x="38" y="46" width="6" height="10" fill="${palette.fur}" />
+              <rect x="44" y="40" width="8" height="4" fill="${palette.stripe}" />
+              <rect x="48" y="34" width="4" height="8" fill="${palette.stripe}" />
+            </g>
+          </svg>
+        `;
+      }
+
+      return `
+        <svg viewBox="0 0 64 64" aria-hidden="true" shape-rendering="crispEdges">
+          <g transform="${flip}">
+            <rect x="16" y="8" width="8" height="10" fill="${palette.fur}" />
+            <rect x="40" y="8" width="8" height="10" fill="${palette.fur}" />
+            <rect x="20" y="12" width="24" height="18" fill="${palette.fur}" />
+            <rect x="24" y="16" width="6" height="6" fill="${palette.innerEar}" />
+            <rect x="34" y="16" width="6" height="6" fill="${palette.innerEar}" />
+            <rect x="25" y="22" width="4" height="4" fill="#1b1716" />
+            <rect x="35" y="22" width="4" height="4" fill="#1b1716" />
+            <rect x="29" y="26" width="6" height="3" fill="#74413b" />
+            <rect x="18" y="32" width="28" height="16" fill="${palette.fur}" />
+            <rect x="24" y="34" width="16" height="12" fill="${palette.belly}" />
+            <rect x="12" y="35" width="6" height="12" fill="${palette.fur}" />
+            <rect x="46" y="35" width="6" height="12" fill="${palette.fur}" />
+            <rect x="22" y="48" width="6" height="10" fill="${palette.fur}" />
+            <rect x="36" y="48" width="6" height="10" fill="${palette.fur}" />
+            <rect x="48" y="40" width="8" height="4" fill="${palette.stripe}" />
+            <rect x="52" y="36" width="4" height="8" fill="${palette.stripe}" />
+            <rect x="24" y="38" width="16" height="4" fill="${palette.accent}" opacity="0.5" />
+          </g>
+        </svg>
+      `;
+    }
+
+    function roomMarkup(room, occupied) {
+      return `
+        <article class="stack-window min-h-[160px]">
+          <div class="titlebar">
+            <span>${room.label}</span>
+            <div class="titlebar-right">
+              <span class="status-row">
+                <span class="status-dot ${occupied ? "green" : "red"}"></span>
+                <span>${occupied ? "Occupied" : "Empty"}</span>
+              </span>
+            </div>
+            <span class="close-button">X</span>
+          </div>
+          <div class="room-body ${occupied ? "occupied" : "empty"}">
+            <div class="room-window" style="left:${room.artLeft}%;"></div>
+            <div class="side-cabinet"></div>
+            <div class="door-panel"></div>
+            <div class="door-tag">${room.label}</div>
+            <div class="door-glow ${occupied ? "" : "off"}"></div>
+            <div class="wall-art"></div>
+            ${room.plant ? `
+              <div class="room-plant plant">
+                <div class="leaf a"></div>
+                <div class="leaf b"></div>
+                <div class="leaf c"></div>
+                <div class="pot"></div>
+              </div>` : ""
+            }
+            <div
+              class="station-sprite room-station"
+              data-sprite="${occupied ? room.sprite : "desk"}"
+              data-sprite-type="${occupied ? "sheet" : "single"}"
+            ></div>
+          </div>
+        </article>
+      `;
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = src;
+      });
+    }
+
+    function shouldMakeTransparent(r, g, b) {
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const brightness = (r + g + b) / 3;
+      const saturation = max === 0 ? 0 : (max - min) / max;
+
+      return brightness > 238 || (brightness > 222 && saturation < 0.06);
+    }
+
+    async function getProcessedSprite(spriteKey) {
+      if (processedSpriteCache.has(spriteKey)) {
+        return processedSpriteCache.get(spriteKey);
+      }
+
+      const source = spriteSources[spriteKey];
+      if (!source) {
+        return "";
+      }
+
+      const processed = loadImage(source).then((image) => {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        context.drawImage(image, 0, 0);
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const { data } = imageData;
+
+        for (let index = 0; index < data.length; index += 4) {
+          const r = data[index];
+          const g = data[index + 1];
+          const b = data[index + 2];
+
+          if (shouldMakeTransparent(r, g, b)) {
+            data[index + 3] = 0;
+          }
+        }
+
+        context.putImageData(imageData, 0, 0);
+        return canvas.toDataURL("image/png");
+      });
+
+      processedSpriteCache.set(spriteKey, processed);
+      return processed;
+    }
+
+    async function applySprite(el) {
+      const spriteKey = el.dataset.sprite;
+      const spriteType = el.dataset.spriteType;
+      const spriteUrl = await getProcessedSprite(spriteKey);
+
+      if (!spriteUrl) {
+        return;
+      }
+
+      el.classList.remove("ready", "sheet", "single");
+      el.style.backgroundImage = `url("${spriteUrl}")`;
+      el.classList.add(spriteType === "sheet" ? "sheet" : "single");
+      el.classList.add("ready");
+    }
+
+    function hydrateSprites(scope = document) {
+      const spriteNodes = Array.from(scope.querySelectorAll("[data-sprite]"));
+      return Promise.all(spriteNodes.map((el) => applySprite(el)));
+    }
+
+    function createAudienceSeat(index) {
+      const catOrder = ["grey", "orange", "calico", "tux", "orange", "grey", "calico"];
+      const chairOrder = [
+        ["#9d79c2", "#694686", "#cc7f59", "#8d4d34"],
+        ["#4e7ab7", "#2d4d7a", "#c79a45", "#85672f"],
+        ["#cf7b57", "#8e4c38", "#bfa95a", "#766933"],
+        ["#8c9d44", "#63702b", "#b8747b", "#7d444c"],
+        ["#a05f89", "#693759", "#b58951", "#7e6032"],
+        ["#d18b4f", "#8b4b32", "#6a8eb7", "#3d5b82"],
+        ["#67967f", "#3f5e4d", "#cc8660", "#8a4e37"]
+      ];
+      const palette = catOrder[index % catOrder.length];
+      const chairs = chairOrder[index % chairOrder.length];
+
+      return `
+        <div
+          class="audience-seat"
+          style="
+            --chair-a:${chairs[0]};
+            --chair-b:${chairs[1]};
+            --chair-c:${chairs[2]};
+            --chair-d:${chairs[3]};
+          "
+        >
+          <div class="chair-back"></div>
+          <div class="chair-base"></div>
+          <div class="pixel-cat tiny">${catSVG("back", palette)}</div>
+        </div>
+      `;
+    }
+
+    function renderAudience(enabled) {
+      const audienceGrid = document.getElementById("audienceGrid");
+      audienceGrid.innerHTML = enabled
+        ? Array.from({ length: 14 }, (_, index) => createAudienceSeat(index)).join("")
+        : "";
+    }
+
+    function normalizeScreenUrl(rawValue) {
+      const normalized = rawValue?.trim();
+
+      if (!normalized) {
+        return null;
+      }
+
+      const lowered = normalized.toLowerCase();
+      if (["0", "off", "false", "standby", "none"].includes(lowered)) {
+        return null;
+      }
+
+      if (normalized === "1") {
+        return {
+          src: "https://www.google.com/?igu=1",
+          label: "google.com",
+          address: "https://www.google.com/?igu=1"
+        };
+      }
+
+      const withProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(normalized)
+        ? normalized
+        : `https://${normalized}`;
+
+      try {
+        const parsed = new URL(withProtocol);
+        return {
+          src: parsed.toString(),
+          label: parsed.hostname || parsed.toString(),
+          address: parsed.toString()
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function updateHall(enabled, screenTarget) {
+      const hallBody = document.getElementById("hallBody");
+      const hallStatusLed = document.getElementById("hallStatusLed");
+      const hallStatusText = document.getElementById("hallStatusText");
+      const hallUrlLabel = document.getElementById("hallUrlLabel");
+      const screenAddress = document.getElementById("screenAddress");
+      const screenInner = document.querySelector(".screen-inner");
+      const conferenceIframe = document.getElementById("conferenceIframe");
+      const screenOverlay = document.getElementById("screenOverlay");
+      const leftHallStation = document.getElementById("leftHallStation");
+      const rightHallStation = document.getElementById("rightHallStation");
+
+      hallBody.classList.toggle("hall-on", enabled);
+      hallBody.classList.toggle("hall-off", !enabled);
+
+      hallStatusLed.className = `status-dot ${enabled ? "green" : "red"}`;
+      hallStatusText.textContent = enabled ? "Cats Watching" : "Catnap Standby";
+      hallUrlLabel.textContent = enabled ? screenTarget.label : "";
+      screenAddress.textContent = enabled ? screenTarget.address : "standby://conference.screen";
+      screenInner.classList.toggle("standby", !enabled);
+      conferenceIframe.classList.toggle("blanked", !enabled);
+
+      const screenLoading = document.getElementById("screenLoading");
+      const loadingBarFill = document.getElementById("loadingBarFill");
+
+      // Clear any pending launch timer
+      if (window._launchTimer) {
+        clearTimeout(window._launchTimer);
+        window._launchTimer = null;
+      }
+
+      if (enabled) {
+        // Show loading screen, hide standby overlay, keep iframe blank
+        conferenceIframe.src = "about:blank";
+        conferenceIframe.classList.add("blanked");
+        screenOverlay.classList.add("hidden");
+        screenLoading.classList.remove("hidden");
+        loadingBarFill.style.transition = "none";
+        loadingBarFill.style.width = "0%";
+
+        // Kick the progress bar after a frame
+        requestAnimationFrame(() => {
+          loadingBarFill.style.transition = "width 3.2s steps(12, end)";
+          loadingBarFill.style.width = "100%";
+        });
+
+        // After delay, load the actual iframe
+        window._launchTimer = setTimeout(() => {
+          conferenceIframe.src = screenTarget.src;
+          conferenceIframe.classList.remove("blanked");
+          screenLoading.classList.add("hidden");
+        }, 3500);
+
+        leftHallStation.dataset.sprite = "cat2";
+        leftHallStation.dataset.spriteType = "sheet";
+        rightHallStation.dataset.sprite = "cat3";
+        rightHallStation.dataset.spriteType = "sheet";
+      } else {
+        conferenceIframe.src = "about:blank";
+        conferenceIframe.classList.add("blanked");
+        screenOverlay.classList.remove("hidden");
+        screenLoading.classList.add("hidden");
+        loadingBarFill.style.width = "0%";
+        leftHallStation.dataset.sprite = "desk";
+        leftHallStation.dataset.spriteType = "single";
+        rightHallStation.dataset.sprite = "desk";
+        rightHallStation.dataset.spriteType = "single";
+      }
+
+      hydrateSprites(hallBody);
+      renderAudience(enabled);
+    }
+
+    // ---- State from query params (fallback for standalone mode) ----
+
+    function getStateFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const checksum = params.get("checksum") || "0000";
+      const paddedChecksum = /^[01]{1,4}$/.test(checksum)
+        ? checksum.padEnd(4, "0").slice(0, 4)
+        : "0000";
+      const screenTarget = normalizeScreenUrl(params.get("url"));
+      const staffBits = paddedChecksum.split("");
+      const activeRooms = new Set();
+
+      if (staffBits[1] === "1") activeRooms.add(2); // manager
+      if (staffBits[2] === "1") activeRooms.add(3); // coder
+      if (staffBits[3] === "1") activeRooms.add(4); // devops
+
+      return {
+        checksum: paddedChecksum,
+        hallEnabled: Boolean(screenTarget),
+        mainOfficeActive: staffBits[0] === "1",
+        activeRooms,
+        staffCount: staffBits.filter((bit) => bit === "1").length,
+        screenTarget
+      };
+    }
+
+    function renderRooms(activeRooms) {
+      const roomStack = document.getElementById("roomStack");
+      roomStack.innerHTML = roomThemes
+        .map((room) => roomMarkup(room, activeRooms.has(room.id)))
+        .join("");
+      hydrateSprites(roomStack);
+    }
+
+    function updateSystemStrip(checksum, staffCount, hallEnabled, screenTarget) {
+      document.getElementById("checksumValue").textContent = checksum;
+      document.getElementById("workerValue").textContent = `${staffCount}/4`;
+      document.getElementById("urlValue").textContent = hallEnabled ? screenTarget.label : "OFF";
+
+      document.getElementById("checksumLed").className = `mini-led ${staffCount > 0 ? "on" : "warn"}`;
+      document.getElementById("workerLed").className = `mini-led ${staffCount > 0 ? "on" : "warn"}`;
+      document.getElementById("urlLed").className = `mini-led ${hallEnabled ? "on" : "warn"}`;
+    }
+
+    // ---- Apply a checksum + url to the entire office ----
+
+    function applyOfficeState(checksum, url) {
+      const padded = checksum.padEnd(4, "0").slice(0, 4);
+      const bits = padded.split("");
+      const mainOfficeActive = bits[0] === "1";
+      const activeRooms = new Set();
+      if (bits[1] === "1") activeRooms.add(2); // manager
+      if (bits[2] === "1") activeRooms.add(3); // coder
+      if (bits[3] === "1") activeRooms.add(4); // devops
+      const staffCount = bits.filter((b) => b === "1").length;
+      const screenTarget = normalizeScreenUrl(url);
+      const hallEnabled = Boolean(screenTarget);
+
+      const lobbyBody = document.querySelector(".lobby-body");
+      const mainOfficeStation = document.getElementById("mainOfficeStation");
+
+      lobbyBody.classList.toggle("empty", !mainOfficeActive);
+      mainOfficeStation.dataset.sprite = mainOfficeActive ? "cat1" : "desk";
+      mainOfficeStation.dataset.spriteType = mainOfficeActive ? "sheet" : "single";
+
+      renderRooms(activeRooms);
+      hydrateSprites(document.querySelector(".lobby-body"));
+      updateHall(hallEnabled, screenTarget);
+      updateSystemStrip(checksum, staffCount, hallEnabled, screenTarget);
+    }
+
+    // ---- Build log ----
+
+    function logMessage(msg, color) {
+      const logEl = document.getElementById("buildLog");
+      logEl.style.display = "block";
+      const line = document.createElement("div");
+      line.style.color = color || "#a8a395";
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ---- Build trigger ----
+
+    async function startBuild() {
+      const input = document.getElementById("goalInput");
+      const btn = document.getElementById("buildBtn");
+      const goal = input.value.trim();
+      if (!goal) return;
+
+      btn.disabled = true;
+      btn.textContent = "Building...";
+      btn.style.opacity = "0.6";
+      logMessage(`Starting build: "${goal}"`, "#ffd46b");
+
+      try {
+        const res = await fetch("/api/build", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ goal }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          logMessage(`Error: ${data.error}`, "#e85353");
+          btn.disabled = false;
+          btn.textContent = "Build";
+          btn.style.opacity = "1";
+        } else {
+          logMessage(`Project ${data.projectId} (${data.slug}) — cats dispatched`, "#63ff98");
+        }
+      } catch (e) {
+        logMessage(`Failed to connect: ${e.message}`, "#e85353");
+        btn.disabled = false;
+        btn.textContent = "Build";
+        btn.style.opacity = "1";
+      }
+    }
+
+    // Submit on Enter
+    document.getElementById("goalInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") startBuild();
+    });
+
+    // ---- SSE connection to orchestrator server ----
+
+    function connectSSE() {
+      const evtSource = new EventSource("/events");
+
+      evtSource.addEventListener("state", (e) => {
+        const state = JSON.parse(e.data);
+        applyOfficeState(state.checksum, state.url);
+
+        const btn = document.getElementById("buildBtn");
+        if (state.phase === "building") {
+          btn.disabled = true;
+          btn.textContent = state.activeTask
+            ? `${state.activeTask}...`
+            : "Building...";
+          btn.style.opacity = "0.6";
+        } else {
+          btn.disabled = false;
+          btn.textContent = "Build";
+          btn.style.opacity = "1";
+        }
+      });
+
+      evtSource.addEventListener("task:start", (e) => {
+        const { taskId } = JSON.parse(e.data);
+        const names = { manager: "Manager Kitty", coder: "Coder Kitty", devops: "DevOps Kitty" };
+        logMessage(`${names[taskId] || taskId} spawned — working...`, "#8feaff");
+      });
+
+      evtSource.addEventListener("task:done", (e) => {
+        const { taskId, summary } = JSON.parse(e.data);
+        const names = { manager: "Manager Kitty", coder: "Coder Kitty", devops: "DevOps Kitty" };
+        logMessage(`${names[taskId] || taskId} done: ${summary}`, "#63ff98");
+      });
+
+      evtSource.addEventListener("task:error", (e) => {
+        const { taskId, error } = JSON.parse(e.data);
+        logMessage(`${taskId} failed: ${error}`, "#e85353");
+      });
+
+      evtSource.addEventListener("launch:start", () => {
+        logMessage("Launching project containers...", "#ffd46b");
+      });
+
+      evtSource.addEventListener("launch:done", (e) => {
+        const { url, slug } = JSON.parse(e.data);
+        logMessage(`Live at ${url}`, "#63ff98");
+      });
+
+      evtSource.onerror = () => {
+        // SSE not available (standalone file mode) — silently ignore
+      };
+    }
+
+    // ---- Boot ----
+
+    function boot() {
+      // Apply initial state from query params (standalone mode)
+      const queryState = getStateFromQuery();
+      applyOfficeState(queryState.checksum, null);
+      if (queryState.screenTarget) {
+        applyOfficeState(queryState.checksum, queryState.screenTarget.src);
+      }
+
+      // Try connecting to the orchestrator server for live updates
+      connectSSE();
+    }
+
+    boot();
+  </script>
+</body>
+</html>

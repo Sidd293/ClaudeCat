@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Office - 32-Bit Pixel Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --border-dark: #1a110e;
+            --panel-bg: #2a1d17;
+            --header-bg: #3a2f2d;
+            --wood-floor: #4a3225;
+            --wood-lobby: #5d4037;
+            --wood-desk: #6b4c3a;
+            --accent-green: #00ff00;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #111;
+            image-rendering: pixelated;
+            user-select: none;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+        }
+
+        /* Pixel Borders & Shadows */
+        .pixel-border {
+            border: 4px solid var(--border-dark);
+        }
+        .pixel-border-sm {
+            border: 2px solid var(--border-dark);
+        }
+        
+        .hall-dim {
+            filter: brightness(0.3) sepia(0.4) hue-rotate(-10deg) contrast(1.2);
+            transition: filter 0.5s steps(5);
+        }
+
+        /* UI Elements */
+        .header-bar {
+            background-color: var(--header-bg);
+            border-bottom: 4px solid var(--border-dark);
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            text-transform: uppercase;
+            font-size: 22px;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+        }
+
+        .close-btn {
+            background: #d32f2f;
+            border: 2px solid #000;
+            box-shadow: inset -2px -2px 0px rgba(0,0,0,0.5), inset 2px 2px 0px rgba(255,255,255,0.3);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        /* 32-Bit Animations */
+        @keyframes pixel-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+        }
+        .animate-cat {
+            animation: pixel-bounce 1s infinite steps(2);
+        }
+
+        @keyframes screen-flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+        .monitor-glow {
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+            animation: screen-flicker 2s infinite steps(4);
+        }
+
+        /* Architecture Elements */
+        .doorway {
+            width: 48px;
+            background-color: #33221b;
+            border-right: 4px solid var(--border-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            position: relative;
+        }
+        .door-hole {
+            width: 32px;
+            height: 64px;
+            background-color: #111;
+            border-radius: 4px 4px 0 0;
+        }
+        .door-indicator {
+            position: absolute;
+            right: -14px;
+            top: 40%;
+            background: #000;
+            color: var(--accent-green);
+            padding: 2px;
+            font-size: 12px;
+            line-height: 1;
+            border: 2px solid #222;
+            z-index: 10;
+        }
+
+        .desk-unit {
+            width: 70px;
+            height: 35px;
+            background: var(--wood-desk);
+            border-top: 4px solid #8f6851;
+            border-right: 4px solid #4a3427;
+            border-bottom: 4px solid #4a3427;
+            border-left: 4px solid #8f6851;
+            position: relative;
+        }
+
+        /* Main Hall Wood Beams */
+        .wood-beam {
+            width: 60px;
+            background: repeating-linear-gradient(
+                #4a2e1b,
+                #4a2e1b 20px,
+                #3a2212 20px,
+                #3a2212 24px
+            );
+            border-left: 4px solid var(--border-dark);
+            border-right: 4px solid var(--border-dark);
+            box-shadow: inset 4px 0 0 rgba(255,255,255,0.05), inset -4px 0 0 rgba(0,0,0,0.3);
+        }
+
+        .projector-screen {
+            background: #000;
+            border: 12px solid #222;
+            border-radius: 4px;
+            box-shadow: 0 15px 0 rgba(0,0,0,0.3), inset 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chair-back {
+            width: 36px;
+            height: 32px;
+            background: #a02020;
+            border: 2px solid #000;
+            border-top: 4px solid #d32f2f;
+            border-radius: 6px 6px 0 0;
+            position: relative;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="p-2 gap-2 box-border">
+
+    <!-- LEFT SIDEBAR (25%) -->
+    <aside class="w-1/4 h-full pixel-border bg-panel-bg flex flex-col rounded shadow-lg overflow-hidden shrink-0">
+        <div class="header-bar text-[#a28e85]">
+            <span class="text-white">ENTRANCE</span>
+            <span class="ml-4 opacity-50 text-lg">LOBBY</span>
+        </div>
+
+        <!-- Lobby Area -->
+        <div class="h-48 bg-[var(--wood-lobby)] border-b-4 border-[var(--border-dark)] relative flex flex-col items-center justify-end pb-4">
+            <div class="absolute top-4 bg-[#111] border-2 border-[#333] text-[#0f0] px-4 py-1 text-sm shadow-md">WELCOME TO OFFICE</div>
+            
+            <div class="w-3/4 h-12 bg-amber-800 border-4 border-amber-900 relative flex justify-center shadow-lg">
+                <div class="absolute -top-8 w-12 h-8 bg-[#222] border-2 border-black monitor-glow flex items-center justify-center">
+                    <div class="w-full h-full bg-cyan-400 opacity-70"></div>
+                </div>
+                <!-- Receptionist Cat -->
+                <div id="reception-cat" class="absolute -top-10 left-4 animate-cat"></div>
+            </div>
+            
+            <!-- Potted Plant -->
+            <div class="absolute bottom-4 right-4 w-6 h-10">
+                <div class="w-full h-6 bg-green-600 border-2 border-green-800 rounded-t-full"></div>
+                <div class="w-full h-4 bg-orange-800 border-2 border-orange-900"></div>
+            </div>
+        </div>
+
+        <!-- 5 Private Rooms -->
+        <div id="rooms-container" class="flex-1 flex flex-col">
+            <!-- Injected via JS to keep HTML clean -->
+        </div>
+    </aside>
+
+    <!-- RIGHT MAIN HALL (75%) -->
+    <main class="w-3/4 h-full pixel-border bg-panel-bg flex flex-col rounded shadow-lg overflow-hidden relative">
+        
+        <!-- Hall Header -->
+        <div class="header-bar text-[#a28e85] justify-between z-20 relative">
+            <span class="text-white">MAIN CONFERENCE HALL</span>
+            <div class="flex items-center gap-4">
+                <span id="viewing-status" class="text-cyan-400">VIEWING: STANDBY</span>
+                <div class="close-btn">X</div>
+            </div>
+        </div>
+
+        <!-- Sys Control Overlay -->
+        <div class="absolute top-14 left-4 bg-black/80 border-2 border-[var(--accent-green)] text-[var(--accent-green)] p-3 text-lg z-50 pointer-events-none shadow-lg">
+            <div class="mb-1 text-white">[ SYS CONTROL ]</div>
+            <div>Checksum: <span id="ui-chk">000</span></div>
+            <div>URL Param: <span id="ui-url">0</span></div>
+            <div>Hall Lights: <span id="ui-lights">CLOSED</span></div>
+        </div>
+
+        <!-- Hall Scene -->
+        <div id="hall-scene" class="flex-1 relative bg-[var(--wood-floor)] flex flex-col items-center hall-dim transition-all duration-700 overflow-hidden">
+            
+            <!-- Architecture: Left and Right Wood Beams -->
+            <div class="wood-beam absolute left-10 top-0 bottom-0 z-0"></div>
+            <div class="wood-beam absolute right-10 top-0 bottom-0 z-0"></div>
+            
+            <!-- Speaker Cat -->
+            <div id="speaker-cat" class="absolute left-28 top-64 animate-cat z-10 scale-125"></div>
+
+            <!-- Projector Screen Mount -->
+            <div class="w-3/4 h-[55%] projector-screen mt-12 z-10 flex flex-col">
+                <div class="w-full h-4 bg-gray-300 border-b-2 border-gray-500 shadow-md"></div>
+                
+                <!-- Screen Content -->
+                <div class="flex-1 relative">
+                    <div id="screen-off" class="absolute inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center text-[#444]">
+                        <div class="text-7xl mb-4">●</div>
+                        <div class="text-4xl animate-pulse tracking-widest">NO SIGNAL</div>
+                    </div>
+                    <iframe id="screen-on" class="w-full h-full bg-white hidden" src="about:blank" title="Conference Display"></iframe>
+                </div>
+            </div>
+
+            <!-- Seating Area -->
+            <div class="absolute bottom-6 w-full flex justify-center z-20">
+                <div id="seating-grid" class="grid grid-cols-10 gap-x-4 gap-y-6 w-4/5 px-8">
+                    <!-- Chairs injected via JS -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- 32-Bit Cat Sprite Generator (SVG) ---
+        const generateCatSVG = (colorBody, colorBelly, scale = 1) => `
+            <svg viewBox="0 0 16 16" width="${36 * scale}" height="${36 * scale}" shape-rendering="crispEdges" class="drop-shadow-md">
+                <!-- Tail -->
+                <rect x="2" y="10" width="2" height="2" fill="${colorBody}"/>
+                <rect x="1" y="8" width="2" height="2" fill="${colorBody}"/>
+                <!-- Body -->
+                <rect x="4" y="6" width="8" height="10" fill="${colorBody}"/>
+                <rect x="6" y="8" width="4" height="8" fill="${colorBelly}"/>
+                <!-- Head -->
+                <rect x="3" y="3" width="10" height="6" fill="${colorBody}"/>
+                <!-- Ears -->
+                <rect x="3" y="1" width="2" height="2" fill="${colorBody}"/>
+                <rect x="11" y="1" width="2" height="2" fill="${colorBody}"/>
+                <!-- Eyes (Whites & Pupils) -->
+                <rect x="4" y="5" width="2" height="2" fill="#fff"/>
+                <rect x="5" y="5" width="1" height="1" fill="#000"/>
+                <rect x="10" y="5" width="2" height="2" fill="#fff"/>
+                <rect x="10" y="5" width="1" height="1" fill="#000"/>
+                <!-- Nose/Mouth -->
+                <rect x="7" y="7" width="2" height="1" fill="#ffa2a2"/>
+            </svg>
+        `;
+
+        // Cat color palettes [Body, Belly]
+        const catPalettes = [
+            ['#d97736', '#eebb88'], // Orange Tabby
+            ['#555555', '#999999'], // Dark Grey
+            ['#888888', '#cccccc'], // Light Grey
+            ['#4a3225', '#eebb88'], // Brown/Calico
+            ['#eebb88', '#ffffff']  // Cream
+        ];
+
+        function getRandomCat() {
+            const palette = catPalettes[Math.floor(Math.random() * catPalettes.length)];
+            return generateCatSVG(palette[0], palette[1]);
+        }
+
+        // --- Initialization & Logic ---
+        function initializeOffice() {
+            // 1. Parse Query Parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const checksum = urlParams.get('checksum') || '000';
+            const urlParam = urlParams.get('url') || '0';
+
+            // Update UI Panel
+            document.getElementById('ui-chk').innerText = checksum;
+            document.getElementById('ui-url').innerText = urlParam;
+
+            // 2. Build Private Rooms (Sidebar)
+            const roomsContainer = document.getElementById('rooms-container');
+            const isChecksumValid = (checksum === '111');
+            
+            for (let i = 1; i <= 5; i++) {
+                // Logic: Populate Room 1 and Room 4 if checksum is 111
+                const hasWorker = isChecksumValid && (i === 1 || i === 4);
+                
+                const roomDiv = document.createElement('div');
+                roomDiv.className = `flex-1 border-b-4 border-[var(--border-dark)] flex relative overflow-hidden ${hasWorker ? 'bg-[#563b2c]' : 'bg-[#3d271d]'}`;
+                
+                // Room Content
+                roomDiv.innerHTML = `
+                    <div class="absolute top-2 left-16 bg-[#111] border-2 border-[#222] px-2 py-0 text-gray-400 text-sm z-10 shadow-sm">ROOM 0${i}</div>
+                    
+                    <!-- Doorway Left -->
+                    <div class="doorway">
+                        <div class="door-hole"></div>
+                        <div class="door-indicator">${hasWorker ? '►' : '■'}</div>
+                    </div>
+
+                    <!-- Desk Area Right -->
+                    <div class="flex-1 relative flex items-end justify-center pb-2 pl-4">
+                        ${hasWorker ? `
+                            <div class="absolute top-8 right-4 w-4 h-4 bg-yellow-200 shadow-[0_0_15px_rgba(255,255,0,0.5)] rounded-full"></div>
+                        ` : ''}
+                        
+                        <div class="desk-unit shadow-lg z-10">
+                            <div class="absolute -top-7 left-2 w-7 h-5 bg-[#111] border-2 border-black flex items-center justify-center ${hasWorker ? 'monitor-glow' : ''}">
+                                <div class="w-full h-full ${hasWorker ? 'bg-cyan-400 opacity-80' : 'bg-gray-800'}"></div>
+                            </div>
+                        </div>
+
+                        <!-- Cat Sprite -->
+                        ${hasWorker ? `
+                            <div class="absolute bottom-4 z-20 animate-cat">
+                                ${generateCatSVG(catPalettes[i-1][0], catPalettes[i-1][1])}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                roomsContainer.appendChild(roomDiv);
+            }
+
+            // 3. Populate Lobby & Speaker
+            document.getElementById('reception-cat').innerHTML = generateCatSVG('#d97736', '#eebb88', 1.2);
+            document.getElementById('speaker-cat').innerHTML = generateCatSVG('#555', '#999', 1.3);
+
+            // 4. Handle Main Hall Logic (url=1)
+            const hallScene = document.getElementById('hall-scene');
+            const screenOff = document.getElementById('screen-off');
+            const screenOn = document.getElementById('screen-on');
+            const viewingStatus = document.getElementById('viewing-status');
+            const lightsStatus = document.getElementById('ui-lights');
+            const seatingGrid = document.getElementById('seating-grid');
+
+            const isHallActive = (urlParam === '1');
+
+            // Build Chairs
+            for (let i = 0; i < 20; i++) {
+                const chairDiv = document.createElement('div');
+                chairDiv.className = 'chair-back flex justify-center items-end pb-1';
+                
+                // Populate cat if hall is active (randomized)
+                if (isHallActive && Math.random() > 0.3) {
+                    const catContainer = document.createElement('div');
+                    catContainer.className = 'absolute -top-4 animate-cat z-0';
+                    catContainer.style.animationDelay = `${Math.random()}s`; // Offset bounces
+                    catContainer.innerHTML = getRandomCat();
+                    chairDiv.appendChild(catContainer);
+                }
+                seatingGrid.appendChild(chairDiv);
+            }
+
+            // Toggle Lighting & Screen
+            if (isHallActive) {
+                hallScene.classList.remove('hall-dim');
+                screenOff.classList.add('hidden');
+                screenOn.classList.remove('hidden');
+                // Use embed-friendly URL
+                screenOn.src = "https://www.google.com/search?igu=1";
+                viewingStatus.innerText = "VIEWING: google.com";
+                viewingStatus.className = "text-cyan-400";
+                lightsStatus.innerText = "OPEN";
+                lightsStatus.className = "text-green-400";
+            } else {
+                hallScene.classList.add('hall-dim');
+                screenOff.classList.remove('hidden');
+                screenOn.classList.add('hidden');
+                screenOn.src = "about:blank";
+                viewingStatus.innerText = "VIEWING: STANDBY";
+                viewingStatus.className = "text-gray-500";
+                lightsStatus.innerText = "CLOSED";
+                lightsStatus.className = "text-gray-500";
+            }
+        }
+
+        // Run on load
+        window.onload = initializeOffice;
+    </script>
+</body>
+</html>

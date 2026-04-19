@@ -1,0 +1,19 @@
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Local project sandboxes
+projects/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
