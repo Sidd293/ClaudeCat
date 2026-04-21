@@ -17,6 +17,7 @@ import { ProjectContainer, sweepOrphans } from './container.js';
 import { runWorker, WorkerError } from './worker.js';
 import { planTasks } from './planner.js';
 import { ensureProxy, slugify, findFreePort, registerProject } from './proxy.js';
+import { loadSettings, getSettings, getSafeSettings, saveSettings as persistSettings } from './settings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -60,6 +61,55 @@ function updateState(patch) {
 }
 
 // ---------------------------------------------------------------------------
+// BA Cat — contextual question generator
+// ---------------------------------------------------------------------------
+const BA_PROMPT = `You are a business analyst for a web app builder. Given a user's project idea, generate exactly 5 follow-up questions that would help a developer build exactly what the user wants.
+
+Each question must have:
+- "id": a short snake_case identifier
+- "question": the question text (keep it concise, under 15 words)
+- "options": array of 4-7 short selectable choices relevant to this specific project
+- "placeholder": hint text for the free-text input (starts with "or ...")
+
+Make questions SPECIFIC to the project — not generic. Cover: data/entities, user access, UI style, key features, and scope.
+
+Respond with ONLY a JSON array. No markdown, no explanation. Example format:
+[{"id":"data","question":"What fields should each dog profile have?","options":["Name","Breed","Age","Photo","Bio","Location"],"placeholder":"or describe your own fields..."}]`;
+
+async function generateBAQuestions(goal) {
+  try {
+    const { execSync } = await import('node:child_process');
+    const escaped = goal.replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    const result = execSync(
+      `claude --model claude-haiku-4-5-20251001 -p "Project idea: \\"${escaped}\\"" --append-system-prompt "${BA_PROMPT.replace(/"/g, '\\"')}" --output-format text 2>/dev/null`,
+      { encoding: 'utf8', timeout: 30_000 }
+    ).trim();
+
+    // Extract JSON array from response (handle potential markdown wrapping)
+    const jsonMatch = result.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('No JSON array in response');
+    const questions = JSON.parse(jsonMatch[0]);
+
+    if (!Array.isArray(questions) || questions.length === 0) throw new Error('Empty questions');
+    // Validate shape
+    return questions.filter(q => q.id && q.question && Array.isArray(q.options)).slice(0, 6);
+  } catch (e) {
+    log.warn('analyst', `AI question generation failed (${e.message}), using fallback`);
+    return fallbackQuestions(goal);
+  }
+}
+
+function fallbackQuestions(goal) {
+  return [
+    { id: 'data', question: 'What are the main data items in this app?', options: ['Text entries', 'Users', 'Images', 'Categories', 'Timestamps'], placeholder: 'or describe your entities...' },
+    { id: 'auth', question: 'How should users access the app?', options: ['No login needed', 'Simple username', 'Email + password', 'Shared app'], placeholder: 'or describe your preference...' },
+    { id: 'ui', question: 'Look & feel preferences?', options: ['Dark theme', 'Light theme', 'Minimal/Clean', 'Colorful', 'Mobile-friendly'], placeholder: 'or describe your style...' },
+    { id: 'features', question: 'What key features should be included?', options: ['Search', 'Filters', 'CRUD operations', 'Real-time updates', 'Export'], placeholder: 'or describe your features...' },
+    { id: 'extras', question: 'Anything else the cats should know?', options: ['Keep it simple', 'Add demo data', 'Loading states', 'Responsive'], placeholder: 'any other notes...' },
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Express server
 // ---------------------------------------------------------------------------
 const app = express();
@@ -90,6 +140,38 @@ app.get('/events', (req, res) => {
 // Current state (for polling fallback)
 app.get('/api/state', (req, res) => {
   res.json(officeState);
+});
+
+// Settings
+app.get('/api/settings', (req, res) => {
+  res.json(getSafeSettings());
+});
+
+app.post('/api/settings', async (req, res) => {
+  const incoming = req.body;
+  const current = getSettings();
+
+  // Preserve existing API key when browser sends `true` (meaning "keep existing")
+  if (incoming.auth?.apiKey === true) {
+    incoming.auth.apiKey = current.auth.apiKey;
+  }
+  if (incoming.auth?.apiKey === '') {
+    incoming.auth.apiKey = null;
+  }
+
+  await persistSettings(incoming);
+  res.json(getSafeSettings());
+});
+
+// BA cat — generate follow-up questions for a goal
+app.post('/api/analyze', async (req, res) => {
+  const { goal } = req.body;
+  if (!goal || typeof goal !== 'string') {
+    return res.status(400).json({ error: 'goal is required' });
+  }
+
+  const questions = await generateBAQuestions(goal);
+  res.json({ questions });
 });
 
 // Trigger a build
@@ -156,6 +238,18 @@ async function runBuild(goal, projectId, projectSlug) {
     for (let i = 0; i < allTasks.length; i++) {
       const task = allTasks[i];
 
+      // Skip devops if coder output was auto-recovered (incomplete)
+      if (task.id === 'devops') {
+        const coderHandoff = handoffs.find((h) => h.task_id === 'coder');
+        if (coderHandoff?._synthesized) {
+          log.warn('orchestrator', `Skipping devops — coder output was auto-recovered and may be incomplete`);
+          broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
+          broadcast('task:done', { taskId: task.id, summary: 'Skipped — coder output incomplete' });
+          handoffs.push({ task_id: 'devops', status: 'completed', summary: 'Skipped — coder output was auto-recovered', _skipped: true });
+          continue;
+        }
+      }
+
       // Update checksum: bit 0 = orchestrator (always on), bit 1 = manager, bit 2 = coder, bit 3 = devops
       const bits = ['1', '0', '0', '0'];
       if (task.id === 'manager') bits[1] = '1';
@@ -163,7 +257,7 @@ async function runBuild(goal, projectId, projectSlug) {
       if (task.id === 'devops') bits[3] = '1';
       updateState({ checksum: bits.join(''), activeTask: task.id });
 
-      broadcast('task:start', { taskId: task.id, index: i, total: allTasks.length });
+      broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
 
       try {
         const h = await runWorker({
@@ -171,6 +265,7 @@ async function runBuild(goal, projectId, projectSlug) {
           taskId: task.id,
           systemPrompt: task.system,
           taskPrompt: task.task,
+          model: task.model,
           timeoutMs: TIMEOUT,
         });
         handoffs.push(h);
@@ -250,13 +345,15 @@ async function runBuild(goal, projectId, projectSlug) {
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-app.listen(SERVER_PORT, () => {
-  log.raw('');
-  log.raw(chalk.bold.magenta('  ╭─────────────────────────────────────╮'));
-  log.raw(chalk.bold.magenta('  │   🐱  ClaudeCat Office Server       │'));
-  log.raw(chalk.bold.magenta('  │   cats orchestrating cats           │'));
-  log.raw(chalk.bold.magenta('  ╰─────────────────────────────────────╯'));
-  log.raw('');
-  log.raw(`  ${chalk.bold('Open the office:')} ${chalk.cyan(`http://localhost:${SERVER_PORT}`)}`);
-  log.raw('');
+loadSettings().then(() => {
+  app.listen(SERVER_PORT, () => {
+    log.raw('');
+    log.raw(chalk.bold.magenta('  ╭─────────────────────────────────────╮'));
+    log.raw(chalk.bold.magenta('  │   🐱  ClaudeCat Office Server       │'));
+    log.raw(chalk.bold.magenta('  │   cats orchestrating cats           │'));
+    log.raw(chalk.bold.magenta('  ╰─────────────────────────────────────╯'));
+    log.raw('');
+    log.raw(`  ${chalk.bold('Open the office:')} ${chalk.cyan(`http://localhost:${SERVER_PORT}`)}`);
+    log.raw('');
+  });
 });

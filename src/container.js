@@ -11,9 +11,9 @@
 // - Network mode 'bridge' (default). Cats need internet for npm/pip.
 //   Tightening this up is a v1 concern.
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import Docker from 'dockerode';
 import { log } from './logger.js';
+import { getAuthEnvVar } from './settings.js';
 
 const docker = new Docker();
 
@@ -46,16 +46,14 @@ export class ProjectContainer {
 
     log.step('docker', `Starting project container for ${this.projectId}`);
 
-    // Extract Claude Code OAuth token from macOS Keychain and pass it
-    // into the container. Subscription auth (Pro/Max) stores credentials
-    // in the system keychain, not on the filesystem.
-    const oauthToken = this.extractOAuthToken();
+    // Get auth credentials from settings (Keychain, manual API key, or OpenAI)
+    const { envName, envValue } = getAuthEnvVar();
 
     this.container = await docker.createContainer({
       Image: this.image,
       name: `claudecat-${this.projectId}`,
       Cmd: ['sleep', 'infinity'],
-      Env: [`ANTHROPIC_API_KEY=${oauthToken}`],
+      Env: [`${envName}=${envValue}`],
       Labels: {
         'claudecat.project': this.projectId,
         'claudecat.session': this.sessionId,
@@ -71,32 +69,6 @@ export class ProjectContainer {
 
     await this.container.start();
     log.ok('docker', `Container ${this.container.id.slice(0, 12)} running`);
-  }
-
-  /**
-   * Extract the Claude Code OAuth access token from the macOS Keychain.
-   * Claude Pro/Max subscriptions store credentials here, not on the filesystem.
-   */
-  extractOAuthToken() {
-    try {
-      const raw = execSync(
-        'security find-generic-password -s "Claude Code-credentials" -w',
-        { encoding: 'utf8', timeout: 5000 }
-      ).trim();
-      const creds = JSON.parse(raw);
-      const token = creds?.claudeAiOauth?.accessToken;
-      if (!token) {
-        throw new Error('No accessToken found in keychain credentials');
-      }
-      log.dim('docker', 'OAuth token extracted from macOS Keychain');
-      return token;
-    } catch (e) {
-      throw new Error(
-        'Could not extract Claude Code credentials from macOS Keychain.\n' +
-        'Make sure you are logged in: run `claude` in a terminal first.\n' +
-        `Detail: ${e.message}`
-      );
-    }
   }
 
   /**

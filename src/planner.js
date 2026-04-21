@@ -10,6 +10,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getModels } from './settings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKERS_DIR = path.resolve(__dirname, '..', 'workers');
@@ -19,6 +20,7 @@ async function readSystemPrompt(name) {
 }
 
 export async function planTasks(userGoal) {
+  const MODELS = getModels();
   const managerSystem = await readSystemPrompt('architect');
   const coderSystem   = await readSystemPrompt('coder');
   const devopsSystem  = await readSystemPrompt('devops');
@@ -26,6 +28,7 @@ export async function planTasks(userGoal) {
   return [
     {
       id: 'manager',
+      model: MODELS.manager,
       system: managerSystem,
       task: [
         `The user wants: ${userGoal}`,
@@ -35,6 +38,7 @@ export async function planTasks(userGoal) {
     },
     {
       id: 'coder',
+      model: MODELS.coder,
       system: coderSystem,
       task: [
         `Read /workspace/spec.md (just written by Manager Cat) and implement everything listed.`,
@@ -44,6 +48,7 @@ export async function planTasks(userGoal) {
     },
     {
       id: 'devops',
+      model: MODELS.devops,
       system: devopsSystem,
       task: [
         `The coder has finished building the project. Audit and harden the infrastructure for deployment.`,

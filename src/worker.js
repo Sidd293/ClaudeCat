@@ -35,9 +35,10 @@ export async function runWorker({
   taskId,
   systemPrompt,
   taskPrompt,
+  model,
   timeoutMs = 10 * 60 * 1000,
 }) {
-  log.step(taskId, `Worker starting`);
+  log.step(taskId, `Worker starting${model ? ` (model: ${model})` : ''}`);
 
   // Write the system prompt to a file inside the workspace so we don't
   // have to deal with shell-escaping multiline content. Claude Code can
@@ -46,83 +47,132 @@ export async function runWorker({
   await fs.mkdir(promptDir, { recursive: true });
   const systemPromptPath = path.join(promptDir, `${taskId}.system.md`);
   const taskPromptPath   = path.join(promptDir, `${taskId}.task.md`);
-  await fs.writeFile(systemPromptPath, systemPrompt);
+
+  // Inject the task ID so the worker knows what to name its handoff file,
+  // regardless of what the system prompt template says.
+  const systemWithId = systemPrompt +
+    `\n\n## IMPORTANT: Your Task ID\n\n` +
+    `Your task ID for this run is \`${taskId}\`.\n` +
+    `Write your handoff to \`.claudecat/handoffs/${taskId}.json\` with \`"task_id": "${taskId}"\`.\n` +
+    `This overrides any other task_id or filename mentioned above.\n`;
+
+  await fs.writeFile(systemPromptPath, systemWithId);
   await fs.writeFile(taskPromptPath, taskPrompt);
 
   const logPath = path.join(projectDir, '.claudecat', 'events', `${taskId}.log`);
   await fs.mkdir(path.dirname(logPath), { recursive: true });
-  const logFd = await fs.open(logPath, 'w');
+  let logFd = await fs.open(logPath, 'w');
 
   // The actual Claude Code invocation, as run inside the container.
   // -p <prompt>: non-interactive, print final response
   // --append-system-prompt: layered on top of the default CC system prompt
   // --dangerously-skip-permissions: skip per-tool approval (OK in sandbox)
   // --output-format stream-json: machine-readable output stream
-  const cmd = [
+  const cmdParts = [
     'cd /workspace &&',
     'claude',
     '--append-system-prompt "$(cat .claudecat/prompts/' + taskId + '.system.md)"',
     '--dangerously-skip-permissions',
     '--output-format stream-json',
     '--verbose',
-    '-p "$(cat .claudecat/prompts/' + taskId + '.task.md)"',
-  ].join(' ');
+  ];
+  if (model) cmdParts.push(`--model ${model}`);
+  cmdParts.push('-p "$(cat .claudecat/prompts/' + taskId + '.task.md)"');
+  const cmd = cmdParts.join(' ');
 
-  const startedAt = Date.now();
-  let exitCode;
-  try {
-    const result = await container.exec(cmd, {
-      timeoutMs,
-      onOutput: (chunk, which) => {
-        // Stream to log file. Do NOT log to console — too noisy.
-        logFd.write(`[${which}] ${chunk}`);
-      },
-    });
-    exitCode = result.exitCode;
-  } catch (e) {
-    await logFd.close();
-    log.err(taskId, `Worker crashed: ${e.message}`);
-    throw new WorkerError(`Worker ${taskId} crashed: ${e.message}`, { taskId, reason: 'crash' });
-  }
+  // ---------------------------------------------------------------------------
+  // Retry loop — retries on 429 (rate limit) and 401 (expired token)
+  // ---------------------------------------------------------------------------
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS = [30_000, 60_000, 120_000]; // 30s, 60s, 120s
 
-  await logFd.close();
-  const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
-
-  if (exitCode !== 0) {
-    log.warn(taskId, `Exited with code ${exitCode} after ${elapsed}s (full output in .claudecat/events/${taskId}.log)`);
-    // Don't throw yet — worker may have written a handoff before dying.
-  } else {
-    log.ok(taskId, `Completed in ${elapsed}s`);
-  }
-
-  // The moment of truth: read the handoff.
   let handoff;
-  try {
-    handoff = await readHandoff(projectDir, taskId);
-  } catch (e) {
-    if (e instanceof HandoffError && e.reason === 'missing') {
-      // Post-exec handoff shim: worker died (rate limit, timeout, crash)
-      // before writing a handoff. Check if it produced useful files anyway.
-      const shimHandoff = await synthesizeHandoff(projectDir, taskId, exitCode);
-      if (shimHandoff) {
-        log.warn(taskId, `No handoff written — synthesized from produced files (worker likely hit rate limit or crashed)`);
-        handoff = shimHandoff;
-      } else {
+  let lastError;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delaySec = RETRY_DELAYS[attempt - 1] / 1000;
+      log.warn(taskId, `Retrying in ${delaySec}s (attempt ${attempt + 1}/${MAX_RETRIES + 1})...`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+      // Re-open log file for new attempt (append mode)
+      await logFd.close();
+      logFd = await fs.open(logPath, 'a');
+      await logFd.write(`\n--- RETRY ATTEMPT ${attempt + 1} ---\n\n`);
+    }
+
+    const startedAt = Date.now();
+    let exitCode;
+    try {
+      const result = await container.exec(cmd, {
+        timeoutMs,
+        onOutput: (chunk, which) => {
+          logFd.write(`[${which}] ${chunk}`);
+        },
+      });
+      exitCode = result.exitCode;
+    } catch (e) {
+      await logFd.close();
+      log.err(taskId, `Worker crashed: ${e.message}`);
+      throw new WorkerError(`Worker ${taskId} crashed: ${e.message}`, { taskId, reason: 'crash' });
+    }
+
+    const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+
+    if (exitCode !== 0) {
+      log.warn(taskId, `Exited with code ${exitCode} after ${elapsed}s`);
+
+      // Check if this was a retryable error (429 or 401)
+      if (await isRetryableError(logPath) && attempt < MAX_RETRIES) {
+        log.warn(taskId, `Detected retryable error (rate limit or auth expiry)`);
+        lastError = new WorkerError(`Worker ${taskId} hit retryable error`, { taskId, reason: 'retryable' });
+        continue; // retry
+      }
+    } else {
+      log.ok(taskId, `Completed in ${elapsed}s`);
+    }
+
+    // Try reading the handoff
+    try {
+      handoff = await readHandoff(projectDir, taskId);
+    } catch (e) {
+      if (e instanceof HandoffError && e.reason === 'missing') {
+        const shimHandoff = await synthesizeHandoff(projectDir, taskId, exitCode);
+        if (shimHandoff) {
+          log.warn(taskId, `No handoff written — synthesized from produced files (worker likely hit rate limit or crashed)`);
+          handoff = shimHandoff;
+        } else if (attempt < MAX_RETRIES && exitCode !== 0) {
+          // No files produced, exit code non-zero — retry
+          lastError = new WorkerError(
+            `Worker ${taskId} produced no handoff or files`,
+            { taskId, reason: 'missing' }
+          );
+          continue;
+        } else {
+          throw new WorkerError(
+            `Worker ${taskId} did not produce a valid handoff and no files were found. ` +
+            `Check .claudecat/events/${taskId}.log for details.`,
+            { taskId, reason: e.reason }
+          );
+        }
+      } else if (e instanceof HandoffError) {
         throw new WorkerError(
-          `Worker ${taskId} did not produce a valid handoff and no files were found. ` +
+          `Worker ${taskId} did not produce a valid handoff (${e.reason}). ` +
           `Check .claudecat/events/${taskId}.log for details.`,
           { taskId, reason: e.reason }
         );
+      } else {
+        throw e;
       }
-    } else if (e instanceof HandoffError) {
-      throw new WorkerError(
-        `Worker ${taskId} did not produce a valid handoff (${e.reason}). ` +
-        `Check .claudecat/events/${taskId}.log for details.`,
-        { taskId, reason: e.reason }
-      );
-    } else {
-      throw e;
     }
+
+    // Got a handoff — break out of retry loop
+    break;
+  }
+
+  await logFd.close();
+
+  if (!handoff) {
+    throw lastError || new WorkerError(`Worker ${taskId} failed after ${MAX_RETRIES + 1} attempts`, { taskId, reason: 'max_retries' });
   }
 
   if (handoff.status === 'failed') {
@@ -148,6 +198,21 @@ export async function runWorker({
 
   log.ok(taskId, `Handoff verified: ${handoff.summary}`);
   return handoff;
+}
+
+/**
+ * Check the worker log for retryable errors (429 rate limit, 401 auth expired).
+ */
+async function isRetryableError(logPath) {
+  try {
+    const logContent = await fs.readFile(logPath, 'utf8');
+    // Check last 2000 chars for the error markers
+    const tail = logContent.slice(-2000);
+    return /\"api_error_status\":\s*(429|401)/.test(tail) ||
+           /\"error\":\s*\"(rate_limit|authentication_failed)\"/.test(tail);
+  } catch {
+    return false;
+  }
 }
 
 /**

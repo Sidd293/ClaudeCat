@@ -6,6 +6,7 @@ const CATS = {
   manager:      '📐',
   architect:    '📐',
   coder:        '⌨️ ',
+  analyst:      '📊',
   devops:       '🔧',
   launcher:     '🚀',
   docker:       '🐳',

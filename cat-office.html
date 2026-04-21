@@ -1484,6 +1484,490 @@
       }
     }
 
+    /* ── BA Cat Bottom Sheet ── */
+
+    .ba-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 6, 6, 0.65);
+      z-index: 90;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease;
+    }
+
+    .ba-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ba-sheet {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 80vh;
+      z-index: 91;
+      transform: translateY(100%);
+      transition: transform 320ms cubic-bezier(0.22, 0.68, 0.32, 1.02);
+      display: flex;
+      flex-direction: column;
+      background:
+        linear-gradient(180deg, rgba(255, 223, 190, 0.08), rgba(0, 0, 0, 0) 40px),
+        linear-gradient(180deg, #3d2a24 0, #261a17 100%);
+      border-top: 3px solid #5a3e34;
+      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .ba-sheet.open {
+      transform: translateY(0);
+    }
+
+    .ba-handle {
+      width: 48px;
+      height: 5px;
+      margin: 10px auto 0;
+      background: #6b4e42;
+      border-radius: 3px;
+    }
+
+    .ba-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px 6px;
+      border-bottom: 2px solid #3a2a24;
+    }
+
+    .ba-title {
+      font-size: clamp(1.2rem, 1.6vw, 1.5rem);
+      color: #ffe4c4;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .ba-title-accent {
+      color: #8feaff;
+    }
+
+    .ba-close {
+      min-width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #ff8888 0, #ab2323 100%);
+      color: #1f0303;
+      border: 2px solid #200606;
+      box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .ba-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .ba-cat-side {
+      width: 30%;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background:
+        radial-gradient(circle at 50% 70%, rgba(143, 234, 255, 0.06), transparent 60%),
+        linear-gradient(180deg, rgba(255, 220, 178, 0.04), transparent 40%);
+      border-right: 2px solid #3a2a24;
+    }
+
+    .ba-cat-sprite {
+      width: 90%;
+      max-width: 260px;
+      aspect-ratio: 1005 / 1024;
+      image-rendering: pixelated;
+      background-repeat: no-repeat;
+      background-size: 200% 200%;
+      filter: drop-shadow(6px 8px 0 rgba(0, 0, 0, 0.25));
+      animation: spriteSheet2x2 1s steps(1, end) infinite;
+    }
+
+    .ba-cat-label {
+      margin-top: 10px;
+      font-size: clamp(1rem, 1.2vw, 1.15rem);
+      color: #8cffab;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .ba-cat-hint {
+      margin-top: 4px;
+      font-size: 0.9rem;
+      color: #8a7b6f;
+      text-align: center;
+    }
+
+    .ba-questions-side {
+      width: 70%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .ba-goal-bar {
+      padding: 10px 18px;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 2px solid #2e201c;
+      color: #ffd46b;
+      font-size: clamp(1rem, 1.2vw, 1.15rem);
+    }
+
+    .ba-goal-bar span {
+      color: #ffe4c4;
+    }
+
+    .ba-questions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ba-question {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .ba-question-label {
+      font-size: clamp(1rem, 1.15vw, 1.1rem);
+      color: #f0d5b8;
+    }
+
+    .ba-question-num {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      text-align: center;
+      line-height: 22px;
+      background: #4b3432;
+      border: 2px solid #2a1a18;
+      color: #ffd46b;
+      font-size: 0.9rem;
+      margin-right: 6px;
+    }
+
+    .ba-question-input {
+      width: 100%;
+      padding: 8px 12px;
+      font-family: "VT323", monospace;
+      font-size: 1.05rem;
+      background: #1a1514;
+      color: #ffe4c4;
+      border: 2px solid #4b3432;
+      outline: none;
+      letter-spacing: 0.03em;
+      transition: border-color 120ms;
+    }
+
+    .ba-question-input:focus {
+      border-color: #8feaff;
+    }
+
+    .ba-question-input::placeholder {
+      color: #5a4a40;
+    }
+
+    .ba-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .ba-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      font-family: "VT323", monospace;
+      font-size: 1rem;
+      background: #2a1f1c;
+      color: #b09a88;
+      border: 2px solid #4b3432;
+      cursor: pointer;
+      user-select: none;
+      transition: background 80ms, color 80ms, border-color 80ms;
+    }
+
+    .ba-chip:hover {
+      background: #3a2a24;
+      color: #ffe4c4;
+    }
+
+    .ba-chip.selected {
+      background: #1a3d24;
+      color: #8cffab;
+      border-color: #3e8556;
+    }
+
+    .ba-chip-check {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #5a4a40;
+      background: #1a1514;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .ba-chip.selected .ba-chip-check {
+      background: #3e8556;
+      border-color: #63ff98;
+    }
+
+    .ba-chip.selected .ba-chip-check::after {
+      content: "";
+      position: absolute;
+      left: 1px;
+      top: 1px;
+      width: 6px;
+      height: 6px;
+      background: #d4ffd8;
+    }
+
+    .ba-complexity-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-bottom: 2px solid #2e201c;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .ba-toggle-track {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      background: #1a3d24;
+      border: 2px solid #3e8556;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .ba-toggle-track.complex {
+      background: #3d2010;
+      border-color: #c56f3f;
+    }
+
+    .ba-toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: #8cffab;
+      transition: left 120ms steps(3, end), background 120ms;
+    }
+
+    .ba-toggle-track.complex .ba-toggle-knob {
+      left: 26px;
+      background: #ffa64d;
+    }
+
+    .ba-toggle-label {
+      font-size: clamp(1rem, 1.15vw, 1.1rem);
+      color: #b09a88;
+    }
+
+    .ba-toggle-value {
+      color: #8cffab;
+      text-transform: uppercase;
+    }
+
+    .ba-toggle-track.complex + .ba-toggle-label .ba-toggle-value {
+      color: #ffa64d;
+    }
+
+    .ba-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 10px 18px;
+      border-top: 2px solid #3a2a24;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .ba-skip-btn {
+      padding: 8px 18px;
+      font-family: "VT323", monospace;
+      font-size: 1.1rem;
+      background: transparent;
+      color: #8a7b6f;
+      border: 2px solid #4b3432;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .ba-skip-btn:hover {
+      color: #ffe4c4;
+      border-color: #6b4e42;
+    }
+
+    .ba-ship-btn {
+      padding: 8px 24px;
+      font-family: "VT323", monospace;
+      font-size: 1.2rem;
+      background: linear-gradient(180deg, #3e8556, #2a5e3b);
+      color: #d4ffd8;
+      border: 2px solid #1a3d24;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
+    }
+
+    .ba-ship-btn:hover {
+      background: linear-gradient(180deg, #4a9e65, #339348);
+    }
+
+    .ba-ship-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    /* ── Settings Panel ── */
+
+    .settings-content {
+      display: block;
+      padding: 18px 22px;
+      overflow-y: auto;
+      max-height: calc(80vh - 60px);
+    }
+
+    .settings-group {
+      margin-bottom: 18px;
+    }
+
+    .settings-label {
+      display: block;
+      font-size: 1.1rem;
+      color: #ffd46b;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .settings-select,
+    .settings-input {
+      width: 100%;
+      padding: 8px 12px;
+      font-family: "VT323", monospace;
+      font-size: 1.05rem;
+      background: #1a1514;
+      color: #ffe4c4;
+      border: 2px solid #4b3432;
+      outline: none;
+      margin-top: 4px;
+    }
+
+    .settings-select:focus,
+    .settings-input:focus {
+      border-color: #8feaff;
+    }
+
+    .settings-model-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .settings-model-label {
+      min-width: 80px;
+      color: #f0d5b8;
+      font-size: 1.05rem;
+    }
+
+    .settings-model-row .settings-select {
+      flex: 1;
+    }
+
+    .settings-divider {
+      height: 2px;
+      background: #3a2a24;
+      margin: 18px 0;
+    }
+
+    .settings-saved {
+      color: #63ff98;
+      font-size: 1.05rem;
+      margin-left: 12px;
+      opacity: 0;
+      transition: opacity 200ms;
+    }
+
+    .settings-saved.show {
+      opacity: 1;
+    }
+
+    .settings-hint {
+      font-size: 0.9rem;
+      color: #6b5a4e;
+      margin-top: 4px;
+    }
+
+    .settings-gear {
+      padding: 10px 14px;
+      font-size: 1.3rem;
+      font-family: inherit;
+      background: #2a2320;
+      color: #a89070;
+      border: 2px solid #4b3432;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 100ms;
+    }
+
+    .settings-gear:hover {
+      color: #ffe4c4;
+    }
+
+    @media (max-width: 768px) {
+      .ba-content {
+        flex-direction: column;
+      }
+      .ba-cat-side {
+        width: 100%;
+        min-width: auto;
+        flex-direction: row;
+        align-items: center;
+        padding: 10px 16px;
+        gap: 12px;
+        border-right: none;
+        border-bottom: 2px solid #3a2a24;
+      }
+      .ba-cat-sprite {
+        width: 72px;
+        max-width: 72px;
+      }
+      .ba-cat-label,
+      .ba-cat-hint {
+        text-align: left;
+      }
+      .ba-questions-side {
+        width: 100%;
+      }
+    }
+
     @media (max-width: 1100px) {
       .scene-shell {
         height: auto;
@@ -1714,6 +2198,97 @@
           letter-spacing:0.08em;
         "
       >Build</button>
+      <button
+        id="settingsBtn"
+        class="settings-gear"
+        onclick="openSettings()"
+        title="Settings"
+      >&#9881;</button>
+    </div>
+
+    <!-- BA Cat Bottom Sheet -->
+    <div id="baBackdrop" class="ba-backdrop" onclick="closeBAPanel()"></div>
+    <div id="baSheet" class="ba-sheet">
+      <div class="ba-handle"></div>
+      <div class="ba-header">
+        <span class="ba-title">🐱 <span class="ba-title-accent">BA Kitty</span> — Quick Questions</span>
+        <span class="ba-close" onclick="closeBAPanel()">X</span>
+      </div>
+      <div class="ba-content">
+        <div class="ba-cat-side">
+          <div id="baCatSprite" class="ba-cat-sprite"></div>
+          <div class="ba-cat-label">Analyst Kitty</div>
+          <div class="ba-cat-hint">Refining your vision</div>
+        </div>
+        <div class="ba-questions-side">
+          <div class="ba-goal-bar">Building: <span id="baGoalText"></span></div>
+          <div class="ba-complexity-toggle">
+            <div id="baToggleTrack" class="ba-toggle-track" onclick="toggleComplexity()">
+              <div class="ba-toggle-knob"></div>
+            </div>
+            <span class="ba-toggle-label">
+              Project scope: <span id="baToggleValue" class="ba-toggle-value">Minimal</span>
+            </span>
+          </div>
+          <div id="baQuestionsList" class="ba-questions-list"></div>
+          <div class="ba-footer">
+            <button class="ba-skip-btn" onclick="skipBA()">Skip & Build</button>
+            <button id="baShipBtn" class="ba-ship-btn" onclick="submitBA()">Ship It 🚀</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div id="settingsBackdrop" class="ba-backdrop" onclick="closeSettings()"></div>
+    <div id="settingsSheet" class="ba-sheet">
+      <div class="ba-handle"></div>
+      <div class="ba-header">
+        <span class="ba-title">&#9881; <span class="ba-title-accent">Settings</span></span>
+        <span class="ba-close" onclick="closeSettings()">X</span>
+      </div>
+      <div class="settings-content">
+        <!-- Auth -->
+        <div class="settings-group">
+          <label class="settings-label">Authentication</label>
+          <select id="settAuthMethod" class="settings-select" onchange="onAuthMethodChange()">
+            <option value="keychain">macOS Keychain (auto)</option>
+            <option value="manual">API Key (manual)</option>
+          </select>
+          <div class="settings-hint">Keychain uses your Claude Code login session</div>
+        </div>
+        <div id="settApiKeyGroup" class="settings-group" style="display:none;">
+          <label class="settings-label">Anthropic API Key</label>
+          <input id="settApiKey" type="password" class="settings-input" placeholder="sk-ant-..." />
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <!-- Models -->
+        <div class="settings-group">
+          <label class="settings-label">Model per Role</label>
+          <div class="settings-model-row">
+            <span class="settings-model-label">Manager</span>
+            <select id="settModelManager" class="settings-select"></select>
+          </div>
+          <div class="settings-model-row">
+            <span class="settings-model-label">Coder</span>
+            <select id="settModelCoder" class="settings-select"></select>
+          </div>
+          <div class="settings-model-row">
+            <span class="settings-model-label">DevOps</span>
+            <select id="settModelDevops" class="settings-select"></select>
+          </div>
+          <div class="settings-hint">Haiku = fast & cheap, Sonnet = balanced, Opus = most capable</div>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <div style="display:flex; align-items:center;">
+          <button class="ba-ship-btn" onclick="saveSettingsUI()">Save Settings</button>
+          <span id="settSavedMsg" class="settings-saved">Saved!</span>
+        </div>
+      </div>
     </div>
 
     <!-- Status log -->
@@ -1770,6 +2345,7 @@
       cat1: "stripes/working-cats/cat1.png",
       cat2: "stripes/working-cats/cat2.png",
       cat3: "stripes/working-cats/cat3.png",
+      cat_ba: "stripes/business-analyst-cat/cat_ba.png",
       desk: "stripes/desk/image.png"
     };
 
@@ -2191,6 +2767,125 @@
       logEl.scrollTop = logEl.scrollHeight;
     }
 
+    // ---- BA Panel ----
+
+    let _baGoal = "";
+    let _baQuestions = [];
+    let _baComplex = false;
+
+    async function openBAPanel(goal, questions) {
+      _baGoal = goal;
+      _baQuestions = questions;
+      _baComplex = false;
+
+      document.getElementById("baGoalText").textContent = goal;
+
+      // Reset complexity toggle
+      document.getElementById("baToggleTrack").classList.remove("complex");
+      document.getElementById("baToggleValue").textContent = "Minimal";
+
+      // Hydrate BA cat sprite
+      const spriteEl = document.getElementById("baCatSprite");
+      const spriteUrl = await getProcessedSprite("cat_ba");
+      if (spriteUrl) {
+        spriteEl.style.backgroundImage = `url("${spriteUrl}")`;
+      }
+
+      const list = document.getElementById("baQuestionsList");
+      list.innerHTML = questions.map((q, i) => `
+        <div class="ba-question" data-qid="${q.id}">
+          <label class="ba-question-label">
+            <span class="ba-question-num">${i + 1}</span>${q.question}
+          </label>
+          ${q.options ? `
+            <div class="ba-options">
+              ${q.options.map((opt) => `
+                <span class="ba-chip" onclick="this.classList.toggle('selected')">
+                  <span class="ba-chip-check"></span>${opt}
+                </span>
+              `).join("")}
+            </div>
+          ` : ""}
+          <input
+            type="text"
+            class="ba-question-input"
+            data-qid="${q.id}"
+            placeholder="${q.placeholder}"
+          />
+        </div>
+      `).join("");
+
+      document.getElementById("baBackdrop").classList.add("open");
+      document.getElementById("baSheet").classList.add("open");
+
+      // Focus first input after transition
+      setTimeout(() => {
+        const first = list.querySelector(".ba-question-input");
+        if (first) first.focus();
+      }, 350);
+    }
+
+    function toggleComplexity() {
+      _baComplex = !_baComplex;
+      const track = document.getElementById("baToggleTrack");
+      const label = document.getElementById("baToggleValue");
+      track.classList.toggle("complex", _baComplex);
+      label.textContent = _baComplex ? "Complex" : "Minimal";
+    }
+
+    function closeBAPanel() {
+      document.getElementById("baBackdrop").classList.remove("open");
+      document.getElementById("baSheet").classList.remove("open");
+      const btn = document.getElementById("buildBtn");
+      btn.disabled = false;
+      btn.textContent = "Build";
+      btn.style.opacity = "1";
+    }
+
+    function collectBAContext() {
+      const questionEls = document.querySelectorAll("#baQuestionsList .ba-question");
+      const parts = [];
+
+      questionEls.forEach((qEl) => {
+        const qid = qEl.dataset.qid;
+        const q = _baQuestions.find((q) => q.id === qid);
+        const label = q ? q.question : qid;
+
+        // Collect selected chips
+        const selected = Array.from(qEl.querySelectorAll(".ba-chip.selected"))
+          .map((chip) => chip.textContent.trim());
+
+        // Collect text input
+        const input = qEl.querySelector(".ba-question-input");
+        const text = input ? input.value.trim() : "";
+
+        const combined = [...selected];
+        if (text) combined.push(text);
+
+        if (combined.length > 0) {
+          parts.push(`- ${label} ${combined.join(", ")}`);
+        }
+      });
+
+      const scope = _baComplex ? "Complex/Full-featured" : "Minimal/Simple";
+      const header = `${_baGoal}\n\nProject scope: ${scope}`;
+
+      return parts.length > 0
+        ? `${header}\n\nAdditional context from user:\n${parts.join("\n")}`
+        : `${header}`;
+    }
+
+    function skipBA() {
+      closeBAPanel();
+      fireBuild(_baGoal);
+    }
+
+    function submitBA() {
+      const enrichedGoal = collectBAContext();
+      closeBAPanel();
+      fireBuild(enrichedGoal);
+    }
+
     // ---- Build trigger ----
 
     async function startBuild() {
@@ -2200,9 +2895,38 @@
       if (!goal) return;
 
       btn.disabled = true;
+      btn.textContent = "Analyzing...";
+      btn.style.opacity = "0.6";
+
+      // Ask BA cat for follow-up questions (AI-generated)
+      btn.textContent = "BA Kitty thinking...";
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ goal }),
+        });
+        if (res.ok) {
+          const { questions } = await res.json();
+          if (questions && questions.length > 0) {
+            openBAPanel(goal, questions);
+            return;
+          }
+        }
+      } catch {
+        // If analyze fails (e.g. standalone mode), just build directly
+      }
+
+      // Fallback: build without BA
+      fireBuild(goal);
+    }
+
+    async function fireBuild(goal) {
+      const btn = document.getElementById("buildBtn");
+      btn.disabled = true;
       btn.textContent = "Building...";
       btn.style.opacity = "0.6";
-      logMessage(`Starting build: "${goal}"`, "#ffd46b");
+      logMessage(`Starting build: "${goal.split("\n")[0]}"`, "#ffd46b");
 
       try {
         const res = await fetch("/api/build", {
@@ -2227,7 +2951,7 @@
       }
     }
 
-    // Submit on Enter
+    // Submit on Enter (in goal input)
     document.getElementById("goalInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter") startBuild();
     });
@@ -2256,9 +2980,11 @@
       });
 
       evtSource.addEventListener("task:start", (e) => {
-        const { taskId } = JSON.parse(e.data);
+        const { taskId, model } = JSON.parse(e.data);
         const names = { manager: "Manager Kitty", coder: "Coder Kitty", devops: "DevOps Kitty" };
-        logMessage(`${names[taskId] || taskId} spawned — working...`, "#8feaff");
+        const shortModel = model ? model.replace(/^claude-/, "").replace(/-\d{8}$/, "") : "";
+        const modelTag = shortModel ? ` [${shortModel}]` : "";
+        logMessage(`${names[taskId] || taskId}${modelTag} spawned — working...`, "#8feaff");
       });
 
       evtSource.addEventListener("task:done", (e) => {
@@ -2284,6 +3010,85 @@
       evtSource.onerror = () => {
         // SSE not available (standalone file mode) — silently ignore
       };
+    }
+
+    // ---- Settings Panel ----
+
+    const CLAUDE_MODELS = [
+      { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5 (fast)" },
+      { id: "claude-sonnet-4-6", label: "Sonnet 4.6 (balanced)" },
+      { id: "claude-opus-4-6", label: "Opus 4.6 (powerful)" },
+    ];
+
+    function populateModelDropdowns() {
+      ["settModelManager", "settModelCoder", "settModelDevops"].forEach((id) => {
+        const sel = document.getElementById(id);
+        const current = sel.value;
+        sel.innerHTML = CLAUDE_MODELS.map((m) =>
+          `<option value="${m.id}">${m.label}</option>`
+        ).join("");
+        if (CLAUDE_MODELS.some((m) => m.id === current)) sel.value = current;
+      });
+    }
+
+    function onAuthMethodChange() {
+      const m = document.getElementById("settAuthMethod").value;
+      document.getElementById("settApiKeyGroup").style.display = m === "manual" ? "" : "none";
+    }
+
+    function openSettings() {
+      fetch("/api/settings").then((r) => r.json()).then((s) => {
+        document.getElementById("settAuthMethod").value = s.auth.method;
+        onAuthMethodChange();
+
+        const akInput = document.getElementById("settApiKey");
+        akInput.value = "";
+        akInput.placeholder = s.auth.apiKey ? "(key saved) enter new to replace" : "sk-ant-...";
+
+        populateModelDropdowns();
+        document.getElementById("settModelManager").value = s.models.manager;
+        document.getElementById("settModelCoder").value = s.models.coder;
+        document.getElementById("settModelDevops").value = s.models.devops;
+      }).catch(() => {
+        populateModelDropdowns();
+      });
+
+      document.getElementById("settingsBackdrop").classList.add("open");
+      document.getElementById("settingsSheet").classList.add("open");
+    }
+
+    function closeSettings() {
+      document.getElementById("settingsBackdrop").classList.remove("open");
+      document.getElementById("settingsSheet").classList.remove("open");
+    }
+
+    async function saveSettingsUI() {
+      const payload = {
+        auth: {
+          method: document.getElementById("settAuthMethod").value,
+          apiKey: document.getElementById("settApiKey").value || true,
+        },
+        models: {
+          manager: document.getElementById("settModelManager").value,
+          coder: document.getElementById("settModelCoder").value,
+          devops: document.getElementById("settModelDevops").value,
+        },
+      };
+
+      try {
+        const res = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const msg = document.getElementById("settSavedMsg");
+          msg.classList.add("show");
+          setTimeout(() => msg.classList.remove("show"), 2000);
+        }
+      } catch (e) {
+        logMessage(`Failed to save settings: ${e.message}`, "#e85353");
+      }
     }
 
     // ---- Boot ----

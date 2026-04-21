@@ -21,6 +21,7 @@ import { ProjectContainer, sweepOrphans } from './container.js';
 import { runWorker, WorkerError } from './worker.js';
 import { planTasks } from './planner.js';
 import { ensureProxy, slugify, findFreePort, registerProject } from './proxy.js';
+import { loadSettings } from './settings.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -116,6 +117,7 @@ async function launchProject(projectDir, slug, projectId) {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
+  await loadSettings();
   banner();
 
   const goal = process.argv.slice(2).join(' ').trim();
@@ -157,6 +159,16 @@ async function main() {
     log.info('orchestrator', `Plan: ${tasks.map((t) => t.id).join(' → ')}`);
 
     for (const task of tasks) {
+      // Skip devops if coder output was auto-recovered (incomplete)
+      if (task.id === 'devops') {
+        const coderHandoff = handoffs.find((h) => h.task_id === 'coder');
+        if (coderHandoff?._synthesized) {
+          log.warn('orchestrator', `Skipping devops — coder output was auto-recovered and may be incomplete`);
+          handoffs.push({ task_id: 'devops', status: 'completed', summary: 'Skipped — coder output was auto-recovered', _skipped: true });
+          continue;
+        }
+      }
+
       try {
         const h = await runWorker({
           container,
@@ -164,6 +176,7 @@ async function main() {
           taskId: task.id,
           systemPrompt: task.system,
           taskPrompt: task.task,
+          model: task.model,
           timeoutMs: TIMEOUT,
         });
         handoffs.push(h);
