@@ -1941,6 +1941,120 @@
       color: #ffe4c4;
     }
 
+    /* Projects panel */
+    .project-card {
+      background: #1e1a16;
+      border: 2px solid #3a2a24;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 150ms, background 150ms;
+    }
+    .project-card:hover {
+      border-color: #6b5a4e;
+      background: #261f1a;
+    }
+    .project-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .project-card-id {
+      font-size: 0.85rem;
+      color: #6b5a4e;
+      font-family: monospace;
+    }
+    .project-card-date {
+      font-size: 0.8rem;
+      color: #5a4d42;
+    }
+    .project-card-summary {
+      font-size: 1rem;
+      color: #d4c4a8;
+      margin-top: 6px;
+      line-height: 1.3;
+    }
+    .project-card-goal {
+      font-size: 0.9rem;
+      color: #a89070;
+      margin-top: 4px;
+    }
+    .project-card-badges {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .project-badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border: 1px solid #3a2a24;
+      color: #8a7a6a;
+    }
+    .project-badge.has {
+      border-color: #3e8556;
+      color: #63ff98;
+    }
+    .project-list {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 0 20px 12px;
+    }
+    .project-list::-webkit-scrollbar { width: 6px; }
+    .project-list::-webkit-scrollbar-thumb { background: #4b3432; }
+    .project-list::-webkit-scrollbar-track { background: transparent; }
+    .project-empty {
+      text-align: center;
+      color: #6b5a4e;
+      padding: 30px 20px;
+      font-size: 1.1rem;
+    }
+    .project-update-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      border-top: 2px solid #3a2a24;
+      background: #1a1512;
+    }
+    .project-update-input {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: #121010;
+      color: #ffe4c4;
+      border: 2px solid #4b3432;
+      outline: none;
+    }
+    .project-update-btn {
+      padding: 8px 18px;
+      font-size: 1rem;
+      font-family: inherit;
+      background: linear-gradient(180deg, #3e6e85, #2a4e5b);
+      color: #d4f0ff;
+      border: 2px solid #1a3d4d;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .project-update-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .project-readme-preview {
+      font-size: 0.85rem;
+      color: #8a7a6a;
+      padding: 10px 16px;
+      background: #151210;
+      border-top: 1px solid #2e2620;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      display: none;
+    }
+
     @media (max-width: 768px) {
       .ba-content {
         flex-direction: column;
@@ -2199,6 +2313,11 @@
         "
       >Build</button>
       <button
+        class="settings-gear"
+        onclick="openProjects()"
+        title="Past Projects"
+      >&#128193;</button>
+      <button
         id="settingsBtn"
         class="settings-gear"
         onclick="openSettings()"
@@ -2254,12 +2373,18 @@
           <select id="settAuthMethod" class="settings-select" onchange="onAuthMethodChange()">
             <option value="keychain">macOS Keychain (auto)</option>
             <option value="manual">API Key (manual)</option>
+            <option value="ollama">Ollama (local)</option>
           </select>
           <div class="settings-hint">Keychain uses your Claude Code login session</div>
         </div>
         <div id="settApiKeyGroup" class="settings-group" style="display:none;">
           <label class="settings-label">Anthropic API Key</label>
           <input id="settApiKey" type="password" class="settings-input" placeholder="sk-ant-..." />
+        </div>
+        <div id="settOllamaGroup" class="settings-group" style="display:none;">
+          <label class="settings-label">Ollama Base URL</label>
+          <input id="settOllamaUrl" type="text" class="settings-input" placeholder="http://localhost:11434" />
+          <div class="settings-hint">Make sure Ollama is running and the model is pulled</div>
         </div>
 
         <div class="settings-divider"></div>
@@ -2270,16 +2395,19 @@
           <div class="settings-model-row">
             <span class="settings-model-label">Manager</span>
             <select id="settModelManager" class="settings-select"></select>
+            <input id="settModelManagerCustom" type="text" class="settings-input" style="display:none" placeholder="e.g. qwen2.5-coder:14b" />
           </div>
           <div class="settings-model-row">
             <span class="settings-model-label">Coder</span>
             <select id="settModelCoder" class="settings-select"></select>
+            <input id="settModelCoderCustom" type="text" class="settings-input" style="display:none" placeholder="e.g. qwen2.5-coder:14b" />
           </div>
           <div class="settings-model-row">
             <span class="settings-model-label">DevOps</span>
             <select id="settModelDevops" class="settings-select"></select>
+            <input id="settModelDevopsCustom" type="text" class="settings-input" style="display:none" placeholder="e.g. qwen2.5-coder:14b" />
           </div>
-          <div class="settings-hint">Haiku = fast & cheap, Sonnet = balanced, Opus = most capable</div>
+          <div id="settModelsHint" class="settings-hint">Haiku = fast & cheap, Sonnet = balanced, Opus = most capable</div>
         </div>
 
         <div class="settings-divider"></div>
@@ -2288,6 +2416,29 @@
           <button class="ba-ship-btn" onclick="saveSettingsUI()">Save Settings</button>
           <span id="settSavedMsg" class="settings-saved">Saved!</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Projects Panel -->
+    <div id="projectsBackdrop" class="ba-backdrop" onclick="closeProjects()"></div>
+    <div id="projectsSheet" class="ba-sheet">
+      <div class="ba-handle"></div>
+      <div class="ba-header">
+        <span class="ba-title">&#128193; <span class="ba-title-accent">Past Projects</span></span>
+        <span class="ba-close" onclick="closeProjects()">X</span>
+      </div>
+      <div id="projectsList" class="project-list">
+        <div class="project-empty">Loading...</div>
+      </div>
+      <div id="projectUpdateBar" class="project-update-bar" style="display:none;">
+        <input
+          id="projectUpdateInput"
+          type="text"
+          class="project-update-input"
+          placeholder="Describe your update..."
+          onkeydown="if(event.key==='Enter')submitProjectUpdate()"
+        />
+        <button id="projectUpdateBtn" class="project-update-btn" onclick="submitProjectUpdate()">Update</button>
       </div>
     </div>
 
@@ -3012,6 +3163,154 @@
       };
     }
 
+    // ---- Projects Panel ----
+
+    let _selectedProjectId = null;
+
+    async function openProjects() {
+      document.getElementById("projectsBackdrop").classList.add("open");
+      document.getElementById("projectsSheet").classList.add("open");
+      document.getElementById("projectUpdateBar").style.display = "none";
+      _selectedProjectId = null;
+
+      const list = document.getElementById("projectsList");
+      list.innerHTML = '<div class="project-empty">Loading...</div>';
+
+      try {
+        const res = await fetch("/api/projects");
+        const projects = await res.json();
+
+        if (!projects.length) {
+          list.innerHTML = '<div class="project-empty">No projects yet. Build something first!</div>';
+          return;
+        }
+
+        list.innerHTML = "";
+        for (const p of projects) {
+          const card = document.createElement("div");
+          card.className = "project-card";
+          card.dataset.projectId = p.id;
+
+          const date = new Date(p.createdAt).toLocaleDateString("en-US", {
+            month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+          });
+
+          card.innerHTML = `
+            <div class="project-card-header">
+              <span class="project-card-id">${p.id}</span>
+              <span class="project-card-date">${date}</span>
+            </div>
+            ${p.goal ? `<div class="project-card-goal">${escapeHtml(p.goal)}</div>` : ""}
+            ${p.summary ? `<div class="project-card-summary">${escapeHtml(p.summary)}</div>`
+              : p.managerSummary ? `<div class="project-card-summary">${escapeHtml(p.managerSummary)}</div>` : ""}
+            <div class="project-card-badges">
+              <span class="project-badge ${p.hasReadme ? 'has' : ''}">README</span>
+              <span class="project-badge ${p.hasCompose ? 'has' : ''}">Compose</span>
+              <span class="project-badge ${p.status === 'completed' ? 'has' : ''}">${p.status || "unknown"}</span>
+            </div>
+            <div class="project-readme-preview" id="readme-${p.id}"></div>
+          `;
+
+          card.addEventListener("click", () => selectProject(p.id, card));
+          list.appendChild(card);
+        }
+      } catch (e) {
+        list.innerHTML = `<div class="project-empty">Failed to load projects: ${e.message}</div>`;
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    async function selectProject(projectId, cardEl) {
+      // Deselect previous
+      document.querySelectorAll(".project-card").forEach(c => c.style.borderColor = "");
+
+      // If clicking the same project, toggle off
+      if (_selectedProjectId === projectId) {
+        _selectedProjectId = null;
+        document.getElementById("projectUpdateBar").style.display = "none";
+        const preview = document.getElementById("readme-" + projectId);
+        if (preview) preview.style.display = "none";
+        return;
+      }
+
+      _selectedProjectId = projectId;
+      cardEl.style.borderColor = "#64d8ff";
+
+      // Show update bar
+      const bar = document.getElementById("projectUpdateBar");
+      bar.style.display = "flex";
+      document.getElementById("projectUpdateInput").value = "";
+      document.getElementById("projectUpdateInput").placeholder = `Describe changes to ${projectId.slice(0, 8)}...`;
+
+      // Hide all other readme previews, show this one
+      document.querySelectorAll(".project-readme-preview").forEach(el => el.style.display = "none");
+
+      // Load README preview
+      const preview = document.getElementById("readme-" + projectId);
+      if (preview) {
+        try {
+          const res = await fetch(`/api/projects/${projectId}/readme`);
+          if (res.ok) {
+            const { readme } = await res.json();
+            // Show first ~15 lines
+            const lines = readme.split("\n").slice(0, 15);
+            preview.textContent = lines.join("\n") + (readme.split("\n").length > 15 ? "\n..." : "");
+            preview.style.display = "block";
+          } else {
+            preview.textContent = "No README found — this project may need a fresh build.";
+            preview.style.display = "block";
+          }
+        } catch {
+          preview.style.display = "none";
+        }
+      }
+
+      setTimeout(() => document.getElementById("projectUpdateInput").focus(), 100);
+    }
+
+    async function submitProjectUpdate() {
+      if (!_selectedProjectId) return;
+      const projectId = _selectedProjectId;
+      const input = document.getElementById("projectUpdateInput");
+      const goal = input.value.trim();
+      if (!goal) return;
+
+      const btn = document.getElementById("projectUpdateBtn");
+      btn.disabled = true;
+      btn.textContent = "Updating...";
+
+      closeProjects();
+      logMessage(`Updating project ${projectId}: "${goal}"`, "#64d8ff");
+
+      try {
+        const res = await fetch("/api/rebuild", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId, goal }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          logMessage(`Error: ${data.error}`, "#e85353");
+        } else {
+          logMessage(`Rebuild started for ${data.projectId} — cats dispatched`, "#63ff98");
+        }
+      } catch (e) {
+        logMessage(`Failed to connect: ${e.message}`, "#e85353");
+      }
+
+      btn.disabled = false;
+      btn.textContent = "Update";
+    }
+
+    function closeProjects() {
+      document.getElementById("projectsBackdrop").classList.remove("open");
+      document.getElementById("projectsSheet").classList.remove("open");
+      _selectedProjectId = null;
+    }
+
     // ---- Settings Panel ----
 
     const CLAUDE_MODELS = [
@@ -3021,19 +3320,39 @@
     ];
 
     function populateModelDropdowns() {
+      const isOllama = document.getElementById("settAuthMethod").value === "ollama";
       ["settModelManager", "settModelCoder", "settModelDevops"].forEach((id) => {
         const sel = document.getElementById(id);
         const current = sel.value;
-        sel.innerHTML = CLAUDE_MODELS.map((m) =>
-          `<option value="${m.id}">${m.label}</option>`
-        ).join("");
-        if (CLAUDE_MODELS.some((m) => m.id === current)) sel.value = current;
+        const customInput = document.getElementById(id + "Custom");
+
+        if (isOllama) {
+          // Ollama mode: hide dropdown, show text input for custom model name
+          sel.style.display = "none";
+          customInput.style.display = "";
+          if (current && !CLAUDE_MODELS.some(m => m.id === current)) {
+            customInput.value = current;
+          }
+        } else {
+          // Claude mode: show dropdown, hide text input
+          sel.style.display = "";
+          customInput.style.display = "none";
+          sel.innerHTML = CLAUDE_MODELS.map((m) =>
+            `<option value="${m.id}">${m.label}</option>`
+          ).join("");
+          if (CLAUDE_MODELS.some((m) => m.id === current)) sel.value = current;
+        }
       });
     }
 
     function onAuthMethodChange() {
       const m = document.getElementById("settAuthMethod").value;
       document.getElementById("settApiKeyGroup").style.display = m === "manual" ? "" : "none";
+      document.getElementById("settOllamaGroup").style.display = m === "ollama" ? "" : "none";
+      document.getElementById("settModelsHint").textContent = m === "ollama"
+        ? "Enter any model you have pulled in Ollama (e.g. qwen2.5-coder:14b)"
+        : "Haiku = fast & cheap, Sonnet = balanced, Opus = most capable";
+      populateModelDropdowns();
     }
 
     function openSettings() {
@@ -3045,10 +3364,19 @@
         akInput.value = "";
         akInput.placeholder = s.auth.apiKey ? "(key saved) enter new to replace" : "sk-ant-...";
 
+        document.getElementById("settOllamaUrl").value = s.auth.ollamaBaseUrl || "http://localhost:11434";
+
         populateModelDropdowns();
-        document.getElementById("settModelManager").value = s.models.manager;
-        document.getElementById("settModelCoder").value = s.models.coder;
-        document.getElementById("settModelDevops").value = s.models.devops;
+        const isOllama = s.auth.method === "ollama";
+        ["Manager", "Coder", "Devops"].forEach((role) => {
+          const key = role.toLowerCase();
+          const val = s.models[key];
+          if (isOllama) {
+            document.getElementById("settModel" + role + "Custom").value = val || "";
+          } else {
+            document.getElementById("settModel" + role).value = val;
+          }
+        });
       }).catch(() => {
         populateModelDropdowns();
       });
@@ -3063,15 +3391,26 @@
     }
 
     async function saveSettingsUI() {
+      const method = document.getElementById("settAuthMethod").value;
+      const isOllama = method === "ollama";
+
+      function getModelValue(role) {
+        if (isOllama) {
+          return document.getElementById("settModel" + role + "Custom").value.trim() || "qwen2.5-coder:14b";
+        }
+        return document.getElementById("settModel" + role).value;
+      }
+
       const payload = {
         auth: {
-          method: document.getElementById("settAuthMethod").value,
+          method,
           apiKey: document.getElementById("settApiKey").value || true,
+          ollamaBaseUrl: document.getElementById("settOllamaUrl").value.trim() || "http://localhost:11434",
         },
         models: {
-          manager: document.getElementById("settModelManager").value,
-          coder: document.getElementById("settModelCoder").value,
-          devops: document.getElementById("settModelDevops").value,
+          manager: getModelValue("Manager"),
+          coder: getModelValue("Coder"),
+          devops: getModelValue("Devops"),
         },
       };
 

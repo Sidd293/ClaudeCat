@@ -88,6 +88,7 @@ export async function runWorker({
 
   let handoff;
   let lastError;
+  let logClosed = false;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
@@ -95,23 +96,26 @@ export async function runWorker({
       log.warn(taskId, `Retrying in ${delaySec}s (attempt ${attempt + 1}/${MAX_RETRIES + 1})...`);
       await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt - 1]));
       // Re-open log file for new attempt (append mode)
-      await logFd.close();
+      if (!logClosed) await logFd.close().catch(() => {});
       logFd = await fs.open(logPath, 'a');
+      logClosed = false;
       await logFd.write(`\n--- RETRY ATTEMPT ${attempt + 1} ---\n\n`);
     }
 
     const startedAt = Date.now();
     let exitCode;
+    logClosed = false;
     try {
       const result = await container.exec(cmd, {
         timeoutMs,
         onOutput: (chunk, which) => {
-          logFd.write(`[${which}] ${chunk}`);
+          if (!logClosed) logFd.write(`[${which}] ${chunk}`).catch(() => {});
         },
       });
       exitCode = result.exitCode;
     } catch (e) {
-      await logFd.close();
+      logClosed = true;
+      await logFd.close().catch(() => {});
       log.err(taskId, `Worker crashed: ${e.message}`);
       throw new WorkerError(`Worker ${taskId} crashed: ${e.message}`, { taskId, reason: 'crash' });
     }
@@ -169,7 +173,7 @@ export async function runWorker({
     break;
   }
 
-  await logFd.close();
+  if (!logClosed) await logFd.close().catch(() => {});
 
   if (!handoff) {
     throw lastError || new WorkerError(`Worker ${taskId} failed after ${MAX_RETRIES + 1} attempts`, { taskId, reason: 'max_retries' });

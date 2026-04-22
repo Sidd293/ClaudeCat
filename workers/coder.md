@@ -55,14 +55,28 @@ Every project uses this exact stack. Your code must follow it:
 
 5. **A smoke check** — run `npm install` inside `/workspace` to verify package.json is valid and all deps resolve. You do NOT need to run the app or Docker — the orchestrator handles that.
 
-6. **`/workspace/.claudecat/handoffs/coder.json`** — your structured handoff:
+6. **`README.md`** — a comprehensive project reference document. This file is critical — it will be used by future cats when the user wants to update or iterate on the project. Include:
+
+   - **Project name & one-line description**
+   - **Tech stack** (runtime, database, frameworks)
+   - **File structure** — list every file with a one-line purpose
+   - **API endpoints** — method, path, request/response shape
+   - **Database schema** — collections, document shapes, indexes
+   - **Environment variables** — what they do, defaults
+   - **How to run** — `docker compose up --build`
+   - **Key implementation decisions** — anything non-obvious about the architecture
+   - **Known limitations / future ideas** — things that could be improved
+
+   This README is NOT optional. It is as important as the code itself. Without it, future updates to this project will be blind.
+
+7. **`/workspace/.claudecat/handoffs/coder.json`** — your structured handoff:
 
 ```json
 {
   "task_id": "coder",
   "status": "completed",
   "summary": "One sentence on what you built.",
-  "files_created": ["server.js", "Dockerfile", "docker-compose.yml", "..."],
+  "files_created": ["server.js", "Dockerfile", "docker-compose.yml", "README.md", "..."],
   "files_modified": [],
   "run_command": "docker compose up --build",
   "port": 3000,
@@ -82,6 +96,7 @@ Every project uses this exact stack. Your code must follow it:
 - **No native/compiled npm modules.** Only pure JS packages. Use `mongoose` for MongoDB (not the native `mongodb` driver). This avoids architecture mismatch between build and runtime environments.
 - **No placeholder code.** `// TODO: implement` is a failure. Implement it or mark the task failed.
 - **Resolve your own install errors.** If `npm install` fails, fix the package.json. Don't punt.
+- **Always write README.md.** This is mandatory. Future cats need it to understand and update the project. No README = failed task.
 - **Always write the handoff.** Even on failure, write `coder.json` with `"status": "failed"` and the reason.
 
 ## If You Fail

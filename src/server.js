@@ -15,7 +15,7 @@ import chalk from 'chalk';
 import { log } from './logger.js';
 import { ProjectContainer, sweepOrphans } from './container.js';
 import { runWorker, WorkerError } from './worker.js';
-import { planTasks } from './planner.js';
+import { planTasks, planUpdateTasks } from './planner.js';
 import { ensureProxy, slugify, findFreePort, registerProject } from './proxy.js';
 import { loadSettings, getSettings, getSafeSettings, saveSettings as persistSettings } from './settings.js';
 
@@ -196,6 +196,125 @@ app.post('/api/build', (req, res) => {
   });
 });
 
+// List existing projects (for the projects panel)
+app.get('/api/projects', async (req, res) => {
+  try {
+    let dirs;
+    try {
+      dirs = await fs.readdir(PROJECTS_ROOT);
+    } catch {
+      return res.json([]);
+    }
+
+    const projects = [];
+    for (const dirName of dirs) {
+      const projectDir = path.join(PROJECTS_ROOT, dirName);
+      const stat = await fs.stat(projectDir).catch(() => null);
+      if (!stat || !stat.isDirectory()) continue;
+
+      // Try to read project metadata from handoffs and README
+      const meta = { id: dirName, dir: projectDir, createdAt: stat.birthtime };
+
+      // Read coder handoff for summary
+      try {
+        const coderHandoff = JSON.parse(
+          await fs.readFile(path.join(projectDir, '.claudecat', 'handoffs', 'coder.json'), 'utf8')
+        );
+        meta.summary = coderHandoff.summary;
+        meta.files = coderHandoff.files_created;
+        meta.status = coderHandoff.status;
+      } catch { /* no coder handoff */ }
+
+      // Read manager handoff for the original goal
+      try {
+        const mgrHandoff = JSON.parse(
+          await fs.readFile(path.join(projectDir, '.claudecat', 'handoffs', 'manager.json'), 'utf8')
+        );
+        meta.managerSummary = mgrHandoff.summary;
+      } catch {
+        // Try architect.json (older projects)
+        try {
+          const archHandoff = JSON.parse(
+            await fs.readFile(path.join(projectDir, '.claudecat', 'handoffs', 'architect.json'), 'utf8')
+          );
+          meta.managerSummary = archHandoff.summary;
+        } catch { /* no manager handoff */ }
+      }
+
+      // Check for README
+      try {
+        await fs.access(path.join(projectDir, 'README.md'));
+        meta.hasReadme = true;
+      } catch {
+        meta.hasReadme = false;
+      }
+
+      // Read the original goal from the manager task prompt if available
+      try {
+        const taskPrompt = await fs.readFile(
+          path.join(projectDir, '.claudecat', 'prompts', 'manager.task.md'), 'utf8'
+        );
+        const goalMatch = taskPrompt.match(/The user wants:\s*(.+)/);
+        if (goalMatch) meta.goal = goalMatch[1].trim();
+      } catch { /* no task prompt */ }
+
+      // Check if it has docker-compose (i.e. was successfully built)
+      try {
+        await fs.access(path.join(projectDir, 'docker-compose.yml'));
+        meta.hasCompose = true;
+      } catch {
+        meta.hasCompose = false;
+      }
+
+      // Only include projects that have at least a handoff or compose file
+      if (meta.summary || meta.managerSummary || meta.hasCompose) {
+        projects.push(meta);
+      }
+    }
+
+    // Sort newest first
+    projects.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json(projects);
+  } catch (e) {
+    log.err('server', `Failed to list projects: ${e.message}`);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Read a project's README
+app.get('/api/projects/:id/readme', async (req, res) => {
+  const projectDir = path.join(PROJECTS_ROOT, req.params.id);
+  try {
+    const readme = await fs.readFile(path.join(projectDir, 'README.md'), 'utf8');
+    res.json({ readme });
+  } catch {
+    res.status(404).json({ error: 'No README found for this project' });
+  }
+});
+
+// Trigger an iterative rebuild on an existing project
+app.post('/api/rebuild', (req, res) => {
+  const { projectId, goal } = req.body;
+  if (!projectId || !goal || typeof goal !== 'string') {
+    return res.status(400).json({ error: 'projectId and goal are required' });
+  }
+  if (officeState.phase === 'building') {
+    return res.status(409).json({ error: 'A build is already in progress' });
+  }
+
+  const projectDir = path.join(PROJECTS_ROOT, projectId);
+
+  // Derive slug from the update goal
+  const projectSlug = slugify(goal);
+
+  res.json({ projectId, slug: projectSlug, status: 'rebuilding' });
+
+  runRebuild(goal, projectId, projectSlug, projectDir).catch((e) => {
+    log.err('server', `Rebuild failed: ${e.message}`);
+    updateState({ phase: 'error', error: e.message, checksum: '0000' });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Build pipeline (same logic as orchestrator.js, but with SSE events)
 // ---------------------------------------------------------------------------
@@ -326,6 +445,163 @@ async function runBuild(goal, projectId, projectSlug) {
     log.ok('launcher', `Project live at ${projectUrl}`);
 
     // Final state: show the URL in the conference hall, all cats celebrate
+    updateState({
+      phase: 'done',
+      checksum: '1111',
+      url: projectUrl,
+      activeTask: null,
+    });
+    broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+
+  } catch (e) {
+    await container.stop().catch(() => {});
+    await container.remove().catch(() => {});
+    updateState({ phase: 'error', error: e.message, checksum: '0000' });
+    throw e;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rebuild pipeline — iterative updates on an existing project
+// ---------------------------------------------------------------------------
+async function runRebuild(goal, projectId, projectSlug, projectDir) {
+  const sessionId = randomBytes(4).toString('hex');
+
+  log.info('orchestrator', `Rebuild: ${chalk.italic(goal)}`);
+  log.info('orchestrator', `Project: ${projectId}`);
+
+  updateState({
+    phase: 'building',
+    goal: `[update] ${goal}`,
+    slug: projectSlug,
+    projectId,
+    checksum: '1000',
+    url: null,
+    activeTask: null,
+    tasks: [],
+    error: null,
+  });
+
+  await sweepOrphans(sessionId);
+
+  // Ensure .claudecat dirs exist (they should from the original build)
+  await fs.mkdir(path.join(projectDir, '.claudecat', 'handoffs'), { recursive: true });
+  await fs.mkdir(path.join(projectDir, '.claudecat', 'events'), { recursive: true });
+  await fs.mkdir(path.join(projectDir, '.claudecat', 'prompts'), { recursive: true });
+
+  // Stop any running containers for this project before rebuilding
+  try {
+    execSync('docker compose down', {
+      cwd: projectDir, stdio: 'pipe', timeout: 30_000,
+    });
+    log.dim('orchestrator', 'Stopped existing project containers');
+  } catch { /* not running, that's fine */ }
+
+  // Clear old handoffs so workers start fresh
+  const handoffDir = path.join(projectDir, '.claudecat', 'handoffs');
+  try {
+    const oldHandoffs = await fs.readdir(handoffDir);
+    for (const f of oldHandoffs) {
+      await fs.unlink(path.join(handoffDir, f));
+    }
+  } catch { /* empty or missing */ }
+
+  const container = new ProjectContainer({
+    projectId, projectDir, image: IMAGE, sessionId,
+  });
+
+  const handoffs = [];
+
+  try {
+    await container.start();
+    const allTasks = await planUpdateTasks(goal);
+    log.info('orchestrator', `Update plan: ${allTasks.map((t) => t.id).join(' → ')}`);
+
+    for (let i = 0; i < allTasks.length; i++) {
+      const task = allTasks[i];
+
+      if (task.id === 'devops') {
+        const coderHandoff = handoffs.find((h) => h.task_id === 'coder');
+        if (coderHandoff?._synthesized) {
+          log.warn('orchestrator', `Skipping devops — coder output was auto-recovered`);
+          broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
+          broadcast('task:done', { taskId: task.id, summary: 'Skipped — coder output incomplete' });
+          handoffs.push({ task_id: 'devops', status: 'completed', summary: 'Skipped', _skipped: true });
+          continue;
+        }
+      }
+
+      const bits = ['1', '0', '0', '0'];
+      if (task.id === 'manager') bits[1] = '1';
+      if (task.id === 'coder') bits[2] = '1';
+      if (task.id === 'devops') bits[3] = '1';
+      updateState({ checksum: bits.join(''), activeTask: task.id });
+
+      broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
+
+      try {
+        const h = await runWorker({
+          container, projectDir,
+          taskId: task.id,
+          systemPrompt: task.system,
+          taskPrompt: task.task,
+          model: task.model,
+          timeoutMs: TIMEOUT,
+        });
+        handoffs.push(h);
+        updateState({
+          tasks: handoffs.map((h) => ({ id: h.task_id, summary: h.summary })),
+        });
+        broadcast('task:done', { taskId: task.id, summary: h.summary });
+      } catch (e) {
+        broadcast('task:error', { taskId: task.id, error: e.message });
+        if (e instanceof WorkerError) {
+          log.err('orchestrator', `Task '${e.taskId}' failed: ${e.message}`);
+          if (e.handoff) handoffs.push(e.handoff);
+        } else {
+          log.err('orchestrator', `Unexpected error in '${task.id}': ${e.message}`);
+        }
+        updateState({
+          phase: 'error',
+          error: `Task ${task.id} failed: ${e.message}`,
+          checksum: '1000',
+          activeTask: null,
+        });
+        await container.stop().catch(() => {});
+        await container.remove().catch(() => {});
+        return;
+      }
+    }
+
+    // All tasks done — relaunch the updated project
+    await container.stop();
+    await container.remove();
+
+    updateState({ checksum: '1001', activeTask: 'launching' });
+    broadcast('launch:start', {});
+
+    await ensureProxy();
+
+    const hostPort = await findFreePort();
+    const override = [
+      'services:', '  app:', '    ports:', `      - "${hostPort}:3000"`, '',
+    ].join('\n');
+    await fs.writeFile(path.join(projectDir, 'docker-compose.override.yml'), override);
+
+    try {
+      execSync('docker compose up --build -d', {
+        cwd: projectDir, stdio: 'pipe', timeout: 120_000,
+      });
+      registerProject(projectSlug, hostPort, projectId);
+    } catch (e) {
+      log.err('launcher', `docker compose up failed: ${e.message}`);
+      updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '0000' });
+      return;
+    }
+
+    const projectUrl = `http://${projectSlug}.localhost`;
+    log.ok('launcher', `Updated project live at ${projectUrl}`);
+
     updateState({
       phase: 'done',
       checksum: '1111',

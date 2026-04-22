@@ -46,14 +46,18 @@ export class ProjectContainer {
 
     log.step('docker', `Starting project container for ${this.projectId}`);
 
-    // Get auth credentials from settings (Keychain, manual API key, or OpenAI)
-    const { envName, envValue } = getAuthEnvVar();
+    // Get auth credentials from settings (Keychain, manual API key, or Ollama)
+    const { envName, envValue, extraEnv } = getAuthEnvVar();
+    const envVars = [`${envName}=${envValue}`];
+    if (extraEnv) {
+      for (const [k, v] of Object.entries(extraEnv)) envVars.push(`${k}=${v}`);
+    }
 
     this.container = await docker.createContainer({
       Image: this.image,
       name: `claudecat-${this.projectId}`,
       Cmd: ['sleep', 'infinity'],
-      Env: [`${envName}=${envValue}`],
+      Env: envVars,
       Labels: {
         'claudecat.project': this.projectId,
         'claudecat.session': this.sessionId,

@@ -13,8 +13,9 @@ const SETTINGS_PATH = path.join(SETTINGS_DIR, 'settings.json');
 
 const DEFAULT_SETTINGS = {
   auth: {
-    method: 'keychain', // 'keychain' or 'manual'
+    method: 'keychain', // 'keychain', 'manual', or 'ollama'
     apiKey: null,
+    ollamaBaseUrl: 'http://localhost:11434',
   },
   models: {
     manager: 'claude-haiku-4-5-20251001',
@@ -73,6 +74,18 @@ export function getSafeSettings() {
  */
 export function getAuthEnvVar() {
   const s = getSettings();
+
+  if (s.auth.method === 'ollama') {
+    const baseUrl = s.auth.ollamaBaseUrl || 'http://localhost:11434';
+    // Inside Docker, localhost means the container — remap to host
+    const dockerBaseUrl = baseUrl.replace('localhost', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal');
+    log.dim('docker', `Using Ollama at ${baseUrl} (container: ${dockerBaseUrl})`);
+    return {
+      envName: 'ANTHROPIC_API_KEY',
+      envValue: 'ollama',
+      extraEnv: { ANTHROPIC_BASE_URL: dockerBaseUrl },
+    };
+  }
 
   if (s.auth.method === 'manual') {
     const key = s.auth.apiKey;
