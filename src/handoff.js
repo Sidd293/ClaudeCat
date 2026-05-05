@@ -87,7 +87,9 @@ export async function verifyHandoffFiles(projectDir, handoff) {
   const missing = [];
   const empty = [];
 
-  for (const rel of claimed) {
+  for (const raw of claimed) {
+    // Strip parenthetical annotations workers sometimes add, e.g. "spec.md (updated)" → "spec.md"
+    const rel = raw.replace(/\s*\(.*?\)\s*$/, '').trim();
     const abs = path.join(projectDir, rel);
     try {
       const stat = await fs.stat(abs);

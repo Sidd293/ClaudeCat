@@ -57,6 +57,8 @@ Write exactly these files into `/workspace`:
 - **Docker Compose layout.** The `docker-compose.yml` must define two services: `app` (builds from `./Dockerfile`, NO port mappings — the orchestrator handles routing) and `db` (`mongo:7`, data persisted via a named volume). The app connects to MongoDB at `mongodb://db:27017/<dbname>`.
 - **Do not write app code.** Your output is `spec.md` + the handoff JSON. That's it.
 - **Always write the handoff.** Even if you fail, write `architect.json` with `"status": "failed"` and a reason. This is non-negotiable.
+- **File paths in handoff must be raw paths only.** `files_created` and `files_modified` must contain plain relative paths like `"spec.md"` — never annotated strings like `"spec.md (updated)"` or `"spec.md - modified"`. Annotations break verification.
+- **`files_created` = files YOU wrote in this task.** Not files you plan for others to create. Your `files_created` MUST be exactly `["spec.md"]` — never include `Dockerfile`, `docker-compose.yml`, `package.json`, `server.js`, or any application code. Those are Coder Cat's job. Listing them here causes verification failure and pipeline abort.
 
 ## If You Fail
 

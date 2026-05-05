@@ -13,7 +13,7 @@
 import path from 'node:path';
 import Docker from 'dockerode';
 import { log } from './logger.js';
-import { getAuthEnvVar } from './settings.js';
+import { getAuthEnvVar, getFeatureEnvVars } from './settings.js';
 
 const docker = new Docker();
 
@@ -52,6 +52,8 @@ export class ProjectContainer {
     if (extraEnv) {
       for (const [k, v] of Object.entries(extraEnv)) envVars.push(`${k}=${v}`);
     }
+    const featureEnv = getFeatureEnvVars();
+    for (const [k, v] of Object.entries(featureEnv)) envVars.push(`${k}=${v}`);
 
     this.container = await docker.createContainer({
       Image: this.image,

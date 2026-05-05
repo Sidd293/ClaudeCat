@@ -17,6 +17,18 @@ Every project uses this exact stack. Your code must follow it:
 - **Frontend:** Vanilla HTML/CSS/JS in `public/`, served by Express via `express.static`
 - **Containerization:** You MUST produce a `Dockerfile` and `docker-compose.yml`
 
+## Order of Operations — CRITICAL
+
+**Write files in this exact order.** If you run out of time or hit an error mid-task, the orchestrator needs `docker-compose.yml` to launch a preview. Writing infrastructure first guarantees a launchable state even on partial completion.
+
+1. `package.json` — deps declared first so nothing else blocks
+2. `Dockerfile`
+3. `docker-compose.yml` — **must exist before any app code**
+4. `.dockerignore`
+5. All application code (`server.js`, `public/`, etc.)
+6. `README.md`
+7. Handoff JSON
+
 ## What You Produce
 
 1. **All application code** as described in `spec.md`, written into `/workspace`.
@@ -90,6 +102,7 @@ Every project uses this exact stack. Your code must follow it:
 ## Rules
 
 - **Read spec.md first.** Every time. Before touching any file.
+- **Write `docker-compose.yml` before any app code.** The orchestrator launches a preview after each slice. If you crash or get rate-limited mid-task, the compose file must already be on disk or the preview will fail.
 - **Match the spec exactly.** File paths, endpoints, collections, run command — all must match what Architect Cat specified. If you must deviate, record it in `deviations_from_spec`.
 - **The app must be `docker compose up --build` ready.** That single command must start the entire stack: app + MongoDB. No manual steps.
 - **Connect to MongoDB via env var.** Use `process.env.MONGODB_URI || 'mongodb://db:27017/appdb'` in your code. Never hardcode connection strings.
@@ -98,6 +111,7 @@ Every project uses this exact stack. Your code must follow it:
 - **Resolve your own install errors.** If `npm install` fails, fix the package.json. Don't punt.
 - **Always write README.md.** This is mandatory. Future cats need it to understand and update the project. No README = failed task.
 - **Always write the handoff.** Even on failure, write `coder.json` with `"status": "failed"` and the reason.
+- **File paths in handoff must be raw paths only.** `files_created` and `files_modified` must be plain relative paths like `"server.js"` — never `"server.js (created)"` or `"server.js - new"`. Annotations break verification.
 
 ## If You Fail
 

@@ -5,7 +5,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getModels } from './settings.js';
+import { getModels, getFeatures } from './settings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKERS_DIR = path.resolve(__dirname, '..', 'workers');
@@ -41,7 +41,9 @@ export async function planRoadmapTask(userGoal, { isUpdate = false } = {}) {
 
 export async function planExecutionTasks({ userGoal, roadmap, isUpdate = false }) {
   const MODELS = getModels();
+  const FEATURES = getFeatures();
   const managerSystem = await readSystemPrompt('architect');
+  const designerSystem = FEATURES.designer ? await readSystemPrompt('designer') : null;
   const coderSystem = await readSystemPrompt('coder');
   const devopsSystem = await readSystemPrompt('devops');
 
@@ -69,6 +71,19 @@ export async function planExecutionTasks({ userGoal, roadmap, isUpdate = false }
         isUpdate,
       }),
     });
+
+    if (FEATURES.designer && designerSystem) {
+      tasks.push({
+        id: `designer-${suffix}`,
+        role: 'designer',
+        slice,
+        sliceIndex: index,
+        sliceCount: sortedSlices.length,
+        model: MODELS.designer,
+        system: designerSystem,
+        task: buildDesignerTask({ userGoal, roadmap, slice, index, isUpdate, features: FEATURES }),
+      });
+    }
 
     tasks.push({
       id: `coder-${suffix}`,
@@ -131,6 +146,51 @@ function buildManagerTask({ userGoal, roadmap, slice, index, isUpdate }) {
   ].join('\n');
 }
 
+function buildDesignerTask({ userGoal, roadmap, slice, index, isUpdate, features }) {
+  const lines = [
+    isUpdate
+      ? `This is an UPDATE to an existing project in /workspace.`
+      : `This project is being built incrementally in prioritized slices.`,
+    ``,
+    `Overall user goal: ${userGoal}`,
+    `Roadmap strategy: ${roadmap.strategy || 'Build the product as a sequence of small complete slices.'}`,
+    `Current slice: ${formatSliceLabel(index, slice)}`,
+    ``,
+    `Read /workspace/spec.md and /workspace/.claudecat/roadmap.json before designing.`,
+    `Read /workspace/README.md if it exists to understand the current project state.`,
+    `Design the UI/UX for the CURRENT SLICE ONLY. Do not design beyond what this slice delivers.`,
+    ``,
+    formatSliceDetails(slice),
+  ];
+
+  if (features.designerStyle) {
+    lines.push(``, `Design style hint from user: ${features.designerStyle}`);
+  }
+
+  if (features.designerImages) {
+    lines.push(
+      ``,
+      `Image generation is ENABLED. You have HF_TOKEN available as an environment variable.`,
+      `Use the HuggingFace Inference API to generate images relevant to this slice.`,
+      `Save generated images to /workspace/public/assets/ directory.`,
+      `Use @huggingface/inference InferenceClient with provider "fal-ai".`,
+      `Model rotation on 429/error: Tongyi-MAI/Z-Image-Turbo → black-forest-labs/FLUX.1-schnell → Qwen/Qwen-Image → stabilityai/stable-diffusion-xl-base-1.0`,
+      `For background removal: use rembg Python library (pip install rembg). Save both raw and bg-removed versions.`,
+      `Only generate images that add real visual value to the UI. Don't generate for the sake of it.`,
+    );
+  } else {
+    lines.push(``, `Image generation is DISABLED. Design using CSS/SVG/gradients only. No external images.`);
+  }
+
+  lines.push(
+    ``,
+    `Write /workspace/.claudecat/design/${slice.id}.json with your complete design spec.`,
+    `Write your handoff. The coder will read your design spec before implementing.`,
+  );
+
+  return lines.join('\n');
+}
+
 function buildCoderTask({ userGoal, slice, index, isUpdate }) {
   return [
     isUpdate
@@ -142,6 +202,7 @@ function buildCoderTask({ userGoal, slice, index, isUpdate }) {
     ``,
     `Read /workspace/README.md FIRST if it exists to understand the current project.`,
     `Then read /workspace/.claudecat/roadmap.json and /workspace/spec.md.`,
+    `If /workspace/.claudecat/design/${slice.id}.json exists, read it and apply the design system — colors, fonts, spacing, animations, and any generated image paths — exactly as specified.`,
     `Implement ONLY the current slice while preserving everything already working.`,
     `Modify existing files rather than rewriting from scratch where possible.`,
     `Keep the project runnable after this slice completes.`,

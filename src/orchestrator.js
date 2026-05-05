@@ -153,6 +153,7 @@ async function executeTaskSequence({ container, projectDir, tasks, handoffs }) {
         systemPrompt: task.system,
         taskPrompt: task.task,
         model: task.model,
+        role: task.role,
         timeoutMs: TIMEOUT,
       });
       handoffs.push(handoff);
@@ -222,22 +223,34 @@ async function main() {
     log.info('orchestrator', `Roadmap: ${roadmap.slices.map((slice) => slice.title).join(' → ')}`);
     log.info('orchestrator', `Execution plan: ${tasks.map((t) => t.id).join(' → ')}`);
 
-    await executeTaskSequence({
-      container,
-      projectDir,
-      tasks,
-      handoffs,
-    });
+    let launchedSlug = null;
+    const slices = [...roadmap.slices].sort((a, b) => a.priority - b.priority);
+    for (let i = 0; i < slices.length; i++) {
+      const slice = slices[i];
+      const sliceTasks = tasks.filter(task => task.slice.id === slice.id);
+      
+      log.info('orchestrator', `Executing slice ${i + 1}/${slices.length}: ${slice.title}`);
+      await executeTaskSequence({
+        container,
+        projectDir,
+        tasks: sliceTasks,
+        handoffs,
+      });
 
-    // Stop the workspace container before launching the project's own containers.
+      // Ensure Traefik proxy + shared network are ready
+      await ensureProxy();
+
+      // Launch the project — proxy routes <slug>.localhost to the app
+      launchedSlug = await launchProject(projectDir, projectSlug, projectId);
+
+      if (i < slices.length - 1) {
+        log.info('orchestrator', `Slice ${i + 1} complete. Preview available at http://${launchedSlug}.localhost`);
+      }
+    }
+
+    // Stop the workspace container after all slices are done.
     await container.stop();
     await container.remove();
-
-    // Ensure Traefik proxy + shared network are ready
-    await ensureProxy();
-
-    // Launch the project — proxy routes <slug>.localhost to the app
-    const launchedSlug = await launchProject(projectDir, projectSlug, projectId);
 
     summary(projectId, projectDir, handoffs, launchedSlug);
   } catch (e) {

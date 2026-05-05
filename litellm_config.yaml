@@ -1,0 +1,26 @@
+litellm_settings:
+  drop_params: true
+  disable_responses_api: true
+
+model_list:
+  - model_name: gemini/gemini-2.0-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+  - model_name: gemini/gemini-1.5-pro
+    litellm_params:
+      model: gemini/gemini-1.5-pro
+  - model_name: gemini/gemini-2.5-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+  - model_name: deepseek-ai/DeepSeek-V4-Pro
+    litellm_params:
+      model: huggingface/deepseek-ai/DeepSeek-V4-Pro:together
+      api_key: os.environ/HF_TOKEN
+  - model_name: deepseek-ai/DeepSeek-V4-Pro:fastest
+    litellm_params:
+      model: huggingface/deepseek-ai/DeepSeek-V4-Pro:fastest
+      api_key: os.environ/HF_TOKEN
+  - model_name: deepseek-ai/DeepSeek-V4-Pro:together
+    litellm_params:
+      model: huggingface/deepseek-ai/DeepSeek-V4-Pro:together
+      api_key: os.environ/HF_TOKEN

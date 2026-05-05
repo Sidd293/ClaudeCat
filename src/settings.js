@@ -13,15 +13,26 @@ const SETTINGS_PATH = path.join(SETTINGS_DIR, 'settings.json');
 
 const DEFAULT_SETTINGS = {
   auth: {
-    method: 'keychain', // 'keychain', 'manual', or 'ollama'
+    method: 'keychain', // 'keychain', 'manual', 'ollama', 'openrouter', 'gemini', or 'huggingface'
     apiKey: null,
     ollamaBaseUrl: 'http://localhost:11434',
+    openRouterApiKey: null,
+    geminiApiKey: null,
+    geminiProxyUrl: 'http://localhost:4000',
+    hfToken: null,
+    hfProxyUrl: 'http://localhost:4000',
   },
   models: {
-    pm:      'claude-haiku-4-5-20251001',
-    manager: 'claude-haiku-4-5-20251001',
-    coder:   'claude-opus-4-6',
-    devops:  'claude-haiku-4-5-20251001',
+    pm:       'claude-haiku-4-5-20251001',
+    manager:  'claude-haiku-4-5-20251001',
+    designer: 'claude-haiku-4-5-20251001',
+    coder:    'claude-opus-4-6',
+    devops:   'claude-haiku-4-5-20251001',
+  },
+  features: {
+    designer:       false,
+    designerImages: false,
+    designerStyle:  '',
   },
 };
 
@@ -67,6 +78,9 @@ export function getSettings() {
 export function getSafeSettings() {
   const s = structuredClone(getSettings());
   s.auth.apiKey = Boolean(s.auth.apiKey);
+  s.auth.openRouterApiKey = Boolean(s.auth.openRouterApiKey);
+  s.auth.geminiApiKey = Boolean(s.auth.geminiApiKey);
+  s.auth.hfToken = Boolean(s.auth.hfToken);
   return s;
 }
 
@@ -88,6 +102,46 @@ export function getAuthEnvVar() {
     };
   }
 
+  if (s.auth.method === 'openrouter') {
+    const key = s.auth.openRouterApiKey;
+    if (!key) throw new Error('OpenRouter API key not configured. Open settings to add it.');
+    log.dim('docker', 'Using OpenRouter API key');
+    return {
+      envName: 'ANTHROPIC_API_KEY',
+      envValue: '',
+      extraEnv: {
+        ANTHROPIC_BASE_URL: 'https://openrouter.ai/api',
+        ANTHROPIC_AUTH_TOKEN: key,
+      },
+    };
+  }
+
+  if (s.auth.method === 'gemini') {
+    const proxyUrl = s.auth.geminiProxyUrl || 'http://localhost:4000';
+    const dockerProxyUrl = proxyUrl
+      .replace('localhost', 'host.docker.internal')
+      .replace('127.0.0.1', 'host.docker.internal');
+    log.dim('docker', `Using Gemini via LiteLLM proxy at ${proxyUrl} (container: ${dockerProxyUrl})`);
+    return {
+      envName: 'ANTHROPIC_API_KEY',
+      envValue: 'gemini',
+      extraEnv: { ANTHROPIC_BASE_URL: dockerProxyUrl },
+    };
+  }
+
+  if (s.auth.method === 'huggingface') {
+    const proxyUrl = s.auth.hfProxyUrl || 'http://localhost:4000';
+    const dockerProxyUrl = proxyUrl
+      .replace('localhost', 'host.docker.internal')
+      .replace('127.0.0.1', 'host.docker.internal');
+    log.dim('docker', `Using HuggingFace via LiteLLM proxy at ${proxyUrl} (container: ${dockerProxyUrl})`);
+    return {
+      envName: 'ANTHROPIC_API_KEY',
+      envValue: 'huggingface',
+      extraEnv: { ANTHROPIC_BASE_URL: dockerProxyUrl },
+    };
+  }
+
   if (s.auth.method === 'manual') {
     const key = s.auth.apiKey;
     if (!key) throw new Error('Anthropic API key not configured. Open settings to add it.');
@@ -105,6 +159,25 @@ export function getAuthEnvVar() {
  */
 export function getModels() {
   return getSettings().models;
+}
+
+/**
+ * Return feature flags.
+ */
+export function getFeatures() {
+  return getSettings().features || {};
+}
+
+/**
+ * Return extra env vars to inject into containers (e.g. HF_TOKEN for designer images).
+ */
+export function getFeatureEnvVars() {
+  const s = getSettings();
+  const env = {};
+  if (s.features?.designerImages && s.auth?.hfToken) {
+    env.HF_TOKEN = s.auth.hfToken;
+  }
+  return env;
 }
 
 /**

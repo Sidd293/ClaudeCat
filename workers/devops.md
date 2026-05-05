@@ -52,6 +52,7 @@ You do NOT redesign or rewrite application code — you optimize the infrastruct
 - **Do NOT add port mappings to docker-compose.yml.** The orchestrator injects these via an override file.
 - **Be conservative.** If something works, don't touch it. Only fix what's broken or missing.
 - **Always write the handoff.** Even on failure, write `devops.json` with `"status": "failed"` and populate `checks_failed`.
+- **File paths in handoff must be raw paths only.** `files_created` and `files_modified` must be plain relative paths like `"Dockerfile"` — never `"Dockerfile (modified)"`. Annotations break verification.
 
 ## If You Fail
 

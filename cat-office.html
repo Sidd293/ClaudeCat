@@ -565,10 +565,11 @@
 
     .room-stack {
       display: grid;
-      grid-template-rows: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(0, 1fr));
       gap: 12px;
       min-height: 0;
       height: 100%;
+      overflow-y: auto;
     }
 
     .room-body {
@@ -2058,7 +2059,7 @@
     .kanban-fab {
       position: fixed;
       right: 18px;
-      bottom: 20px;
+      top: 18px;
       z-index: 70;
       min-width: 108px;
       padding: 10px 14px;
@@ -2094,9 +2095,9 @@
     .kanban-drawer {
       position: fixed;
       right: 18px;
-      bottom: 74px;
+      top: 66px;
       z-index: 69;
-      width: min(560px, calc(100vw - 24px));
+      width: min(800px, calc(100vw - 24px));
       max-height: min(76vh, 760px);
       display: flex;
       flex-direction: column;
@@ -2105,8 +2106,8 @@
       border: 2px solid #150f10;
       box-shadow: var(--pixel-shadow);
       overflow: hidden;
-      transform-origin: bottom right;
-      transform: translateY(18px) scale(0.92);
+      transform-origin: top right;
+      transform: translateY(-18px) scale(0.92);
       opacity: 0;
       pointer-events: none;
       transition: transform 180ms steps(5, end), opacity 180ms steps(5, end);
@@ -2331,7 +2332,7 @@
       }
 
       .room-stack {
-        grid-template-rows: repeat(3, minmax(240px, 1fr));
+        grid-template-rows: repeat(4, minmax(240px, 1fr));
       }
     }
 
@@ -2368,10 +2369,10 @@
       .kanban-drawer {
         right: 10px;
         left: 10px;
-        bottom: 68px;
+        top: 60px;
         width: auto;
         max-height: 72vh;
-        transform-origin: bottom center;
+        transform-origin: top center;
       }
 
       .kanban-body {
@@ -2380,7 +2381,7 @@
 
       .kanban-fab {
         right: 10px;
-        bottom: 12px;
+        top: 12px;
       }
     }
   </style>
@@ -2628,6 +2629,9 @@
             <option value="keychain">macOS Keychain (auto)</option>
             <option value="manual">API Key (manual)</option>
             <option value="ollama">Ollama (local)</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="gemini">Gemini (via proxy)</option>
+            <option value="huggingface">HuggingFace (via proxy)</option>
           </select>
           <div class="settings-hint">Keychain uses your Claude Code login session</div>
         </div>
@@ -2640,12 +2644,36 @@
           <input id="settOllamaUrl" type="text" class="settings-input" placeholder="http://localhost:11434" />
           <div class="settings-hint">Make sure Ollama is running and the model is pulled</div>
         </div>
+        <div id="settOpenRouterGroup" class="settings-group" style="display:none;">
+          <label class="settings-label">OpenRouter API Key</label>
+          <input id="settOpenRouterKey" type="password" class="settings-input" placeholder="sk-or-..." />
+          <div class="settings-hint">Get your key at openrouter.ai — use any OpenRouter model name below</div>
+        </div>
+        <div id="settGeminiGroup" class="settings-group" style="display:none;">
+          <label class="settings-label">Gemini API Key</label>
+          <input id="settGeminiKey" type="password" class="settings-input" placeholder="AIza..." />
+          <label class="settings-label" style="margin-top:8px;">LiteLLM Proxy URL</label>
+          <input id="settGeminiProxyUrl" type="text" class="settings-input" placeholder="http://localhost:4000" />
+          <div class="settings-hint">Get free key at aistudio.google.com (1500 req/day). Start proxy: <code>GEMINI_API_KEY=your-key litellm --model gemini/gemini-2.0-flash --port 4000</code></div>
+        </div>
+        <div id="settHfBuilderGroup" class="settings-group" style="display:none;">
+          <label class="settings-label">HuggingFace Token</label>
+          <input id="settHfBuilderToken" type="password" class="settings-input" placeholder="hf_..." />
+          <label class="settings-label" style="margin-top:8px;">LiteLLM Proxy URL</label>
+          <input id="settHfProxyUrl" type="text" class="settings-input" placeholder="http://localhost:4000" />
+          <div class="settings-hint">Free token at huggingface.co. Start proxy: <code>HUGGING_FACE_HUB_TOKEN=hf_xxx litellm --config litellm_config.yaml --port 4000</code></div>
+        </div>
 
         <div class="settings-divider"></div>
 
         <!-- Models -->
         <div class="settings-group">
           <label class="settings-label">Model per Role</label>
+          <div class="settings-model-row">
+            <span class="settings-model-label">PM</span>
+            <select id="settModelPm" class="settings-select"></select>
+            <input id="settModelPmCustom" type="text" class="settings-input" style="display:none" placeholder="e.g. qwen2.5-coder:14b" />
+          </div>
           <div class="settings-model-row">
             <span class="settings-model-label">Manager</span>
             <select id="settModelManager" class="settings-select"></select>
@@ -2661,7 +2689,34 @@
             <select id="settModelDevops" class="settings-select"></select>
             <input id="settModelDevopsCustom" type="text" class="settings-input" style="display:none" placeholder="e.g. qwen2.5-coder:14b" />
           </div>
+          <div class="settings-model-row">
+            <span class="settings-model-label">Designer</span>
+            <select id="settModelDesigner" class="settings-select"></select>
+            <input id="settModelDesignerCustom" type="text" class="settings-input" style="display:none" placeholder="e.g. gemini/gemini-2.0-flash" />
+          </div>
           <div id="settModelsHint" class="settings-hint">Haiku = fast & cheap, Sonnet = balanced, Opus = most capable</div>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <!-- Designer Kitty -->
+        <div class="settings-group">
+          <label class="settings-label">Designer Kitty</label>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <input id="settDesignerEnabled" type="checkbox" onchange="onDesignerToggle()" />
+            <span style="font-size:0.85rem; color:#a09070;">Enable Designer Kitty (runs between Manager and Coder)</span>
+          </div>
+          <div id="settDesignerOptions" style="display:none; padding-left:4px;">
+            <input id="settDesignerStyle" type="text" class="settings-input" placeholder="Style hint (optional) — e.g. dark, minimal, glassmorphism..." style="margin-bottom:8px;" />
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+              <input id="settDesignerImages" type="checkbox" onchange="onDesignerImagesToggle()" />
+              <span style="font-size:0.85rem; color:#a09070;">Generate images via HuggingFace</span>
+            </div>
+            <div id="settHfTokenGroup" style="display:none;">
+              <input id="settHfToken" type="password" class="settings-input" placeholder="hf_..." />
+              <div class="settings-hint">Free token at huggingface.co — 1500 req/day via fal-ai provider</div>
+            </div>
+          </div>
         </div>
 
         <div class="settings-divider"></div>
@@ -2754,15 +2809,17 @@
     };
 
     const roomThemes = [
-      { id: 2, label: "manager-kitty", artLeft: 11, plant: true, sprite: "cat2" },
-      { id: 3, label: "coder-kitty", artLeft: 6, plant: false, sprite: "cat3" },
-      { id: 4, label: "devops-kitty", artLeft: 10, plant: true, sprite: "cat3" }
+      { id: 2, label: "manager-kitty",  artLeft: 11, plant: true,  sprite: "cat2" },
+      { id: 3, label: "designer-kitty", artLeft: 8,  plant: true,  sprite: "cat5" },
+      { id: 4, label: "coder-kitty",    artLeft: 6,  plant: false, sprite: "cat3" },
+      { id: 5, label: "devops-kitty",   artLeft: 10, plant: true,  sprite: "cat3" },
     ];
 
     const spriteSources = {
       cat1: "stripes/working-cats/cat1.png",
       cat2: "stripes/working-cats/cat2.png",
       cat3: "stripes/working-cats/cat3.png",
+      cat5: "stripes/working-cats/cat5.png",
       cat_ba: "stripes/business-analyst-cat/cat_ba.png",
       desk: "stripes/desk/image.png"
     };
@@ -3106,17 +3163,18 @@
 
     function getStateFromQuery() {
       const params = new URLSearchParams(window.location.search);
-      const checksum = params.get("checksum") || "0000";
-      const paddedChecksum = /^[01]{1,4}$/.test(checksum)
-        ? checksum.padEnd(4, "0").slice(0, 4)
-        : "0000";
+      const checksum = params.get("checksum") || "00000";
+      const paddedChecksum = /^[01]{1,5}$/.test(checksum)
+        ? checksum.padEnd(5, "0").slice(0, 5)
+        : "00000";
       const screenTarget = normalizeScreenUrl(params.get("url"));
       const staffBits = paddedChecksum.split("");
       const activeRooms = new Set();
 
       if (staffBits[1] === "1") activeRooms.add(2); // manager
-      if (staffBits[2] === "1") activeRooms.add(3); // coder
-      if (staffBits[3] === "1") activeRooms.add(4); // devops
+      if (staffBits[2] === "1") activeRooms.add(3); // designer
+      if (staffBits[3] === "1") activeRooms.add(4); // coder
+      if (staffBits[4] === "1") activeRooms.add(5); // devops
 
       return {
         checksum: paddedChecksum,
@@ -3138,7 +3196,7 @@
 
     function updateSystemStrip(checksum, staffCount, hallEnabled, screenTarget) {
       document.getElementById("checksumValue").textContent = checksum;
-      document.getElementById("workerValue").textContent = `${staffCount}/4`;
+      document.getElementById("workerValue").textContent = `${staffCount}/5`;
       document.getElementById("urlValue").textContent = hallEnabled ? screenTarget.label : "OFF";
 
       document.getElementById("checksumLed").className = `mini-led ${staffCount > 0 ? "on" : "warn"}`;
@@ -3149,13 +3207,14 @@
     // ---- Apply a checksum + url to the entire office ----
 
     function applyOfficeState(checksum, url) {
-      const padded = checksum.padEnd(4, "0").slice(0, 4);
+      const padded = checksum.padEnd(5, "0").slice(0, 5);
       const bits = padded.split("");
       const mainOfficeActive = bits[0] === "1";
       const activeRooms = new Set();
       if (bits[1] === "1") activeRooms.add(2); // manager
-      if (bits[2] === "1") activeRooms.add(3); // coder
-      if (bits[3] === "1") activeRooms.add(4); // devops
+      if (bits[2] === "1") activeRooms.add(3); // designer
+      if (bits[3] === "1") activeRooms.add(4); // coder
+      if (bits[4] === "1") activeRooms.add(5); // devops
       const staffCount = bits.filter((b) => b === "1").length;
       const screenTarget = normalizeScreenUrl(url);
       const hallEnabled = Boolean(screenTarget);
@@ -3189,6 +3248,7 @@
       if (!taskId) return "";
       if (taskId === "pm" || taskId.startsWith("pm-")) return "Product Manager Kitty";
       if (taskId === "manager" || taskId.startsWith("manager-")) return "Manager Kitty";
+      if (taskId === "designer" || taskId.startsWith("designer-")) return "Designer Kitty";
       if (taskId === "coder" || taskId.startsWith("coder-")) return "Coder Kitty";
       if (taskId === "devops" || taskId.startsWith("devops-")) return "DevOps Kitty";
       return taskId;
@@ -3197,6 +3257,7 @@
     function roleLabel(role) {
       if (role === "pm") return "PM Kitty";
       if (role === "manager") return "Manager Kitty";
+      if (role === "designer") return "Designer Kitty";
       if (role === "coder") return "Coder Kitty";
       if (role === "devops") return "DevOps Kitty";
       return role || "";
@@ -3687,14 +3748,15 @@
     ];
 
     function populateModelDropdowns() {
-      const isOllama = document.getElementById("settAuthMethod").value === "ollama";
-      ["settModelManager", "settModelCoder", "settModelDevops"].forEach((id) => {
+      const method = document.getElementById("settAuthMethod").value;
+      const useCustomInput = method === "ollama" || method === "openrouter" || method === "gemini" || method === "huggingface";
+      ["settModelPm", "settModelManager", "settModelDesigner", "settModelCoder", "settModelDevops"].forEach((id) => {
         const sel = document.getElementById(id);
         const current = sel.value;
         const customInput = document.getElementById(id + "Custom");
 
-        if (isOllama) {
-          // Ollama mode: hide dropdown, show text input for custom model name
+        if (useCustomInput) {
+          // Ollama/OpenRouter mode: hide dropdown, show text input for custom model name
           sel.style.display = "none";
           customInput.style.display = "";
           if (current && !CLAUDE_MODELS.some(m => m.id === current)) {
@@ -3716,10 +3778,31 @@
       const m = document.getElementById("settAuthMethod").value;
       document.getElementById("settApiKeyGroup").style.display = m === "manual" ? "" : "none";
       document.getElementById("settOllamaGroup").style.display = m === "ollama" ? "" : "none";
-      document.getElementById("settModelsHint").textContent = m === "ollama"
-        ? "Enter any model you have pulled in Ollama (e.g. qwen2.5-coder:14b)"
-        : "Haiku = fast & cheap, Sonnet = balanced, Opus = most capable";
+      document.getElementById("settOpenRouterGroup").style.display = m === "openrouter" ? "" : "none";
+      document.getElementById("settGeminiGroup").style.display = m === "gemini" ? "" : "none";
+      document.getElementById("settHfBuilderGroup").style.display = m === "huggingface" ? "" : "none";
+      if (m === "ollama") {
+        document.getElementById("settModelsHint").textContent = "Enter any model you have pulled in Ollama (e.g. qwen2.5-coder:14b)";
+      } else if (m === "openrouter") {
+        document.getElementById("settModelsHint").textContent = "Use OpenRouter model IDs (e.g. anthropic/claude-haiku-4-5-20251001, anthropic/claude-opus-4-6)";
+      } else if (m === "gemini") {
+        document.getElementById("settModelsHint").textContent = "Use LiteLLM model IDs (e.g. gemini/gemini-2.0-flash, gemini/gemini-1.5-pro)";
+      } else if (m === "huggingface") {
+        document.getElementById("settModelsHint").textContent = "Use HF Router model IDs (e.g. deepseek-ai/DeepSeek-V4-Pro)";
+      } else {
+        document.getElementById("settModelsHint").textContent = "Haiku = fast & cheap, Sonnet = balanced, Opus = most capable";
+      }
       populateModelDropdowns();
+    }
+
+    function onDesignerToggle() {
+      const enabled = document.getElementById("settDesignerEnabled").checked;
+      document.getElementById("settDesignerOptions").style.display = enabled ? "" : "none";
+    }
+
+    function onDesignerImagesToggle() {
+      const enabled = document.getElementById("settDesignerImages").checked;
+      document.getElementById("settHfTokenGroup").style.display = enabled ? "" : "none";
     }
 
     function openSettings() {
@@ -3733,17 +3816,43 @@
 
         document.getElementById("settOllamaUrl").value = s.auth.ollamaBaseUrl || "http://localhost:11434";
 
+        const geminiKeyInput = document.getElementById("settGeminiKey");
+        geminiKeyInput.value = "";
+        geminiKeyInput.placeholder = s.auth.geminiApiKey ? "(key saved) enter new to replace" : "AIza...";
+        document.getElementById("settGeminiProxyUrl").value = s.auth.geminiProxyUrl || "http://localhost:4000";
+
+        document.getElementById("settHfProxyUrl").value = s.auth.hfProxyUrl || "http://localhost:4000";
+        const hfBuilderInput = document.getElementById("settHfBuilderToken");
+        hfBuilderInput.value = "";
+        hfBuilderInput.placeholder = s.auth.hfToken ? "(token saved) enter new to replace" : "hf_...";
+
+        const orKeyInput = document.getElementById("settOpenRouterKey");
+        orKeyInput.value = "";
+        orKeyInput.placeholder = s.auth.openRouterApiKey ? "(key saved) enter new to replace" : "sk-or-...";
+
         populateModelDropdowns();
-        const isOllama = s.auth.method === "ollama";
-        ["Manager", "Coder", "Devops"].forEach((role) => {
+        const useCustomInput = s.auth.method === "ollama" || s.auth.method === "openrouter" || s.auth.method === "gemini" || s.auth.method === "huggingface";
+        ["Pm", "Manager", "Designer", "Coder", "Devops"].forEach((role) => {
           const key = role.toLowerCase();
           const val = s.models[key];
-          if (isOllama) {
+          if (useCustomInput) {
             document.getElementById("settModel" + role + "Custom").value = val || "";
           } else {
             document.getElementById("settModel" + role).value = val;
           }
         });
+
+        // Designer Kitty settings
+        const designerEnabled = s.features?.designer || false;
+        document.getElementById("settDesignerEnabled").checked = designerEnabled;
+        document.getElementById("settDesignerOptions").style.display = designerEnabled ? "" : "none";
+        document.getElementById("settDesignerStyle").value = s.features?.designerStyle || "";
+        const imagesEnabled = s.features?.designerImages || false;
+        document.getElementById("settDesignerImages").checked = imagesEnabled;
+        document.getElementById("settHfTokenGroup").style.display = imagesEnabled ? "" : "none";
+        const hfInput = document.getElementById("settHfToken");
+        hfInput.value = "";
+        hfInput.placeholder = s.auth.hfToken ? "(token saved) enter new to replace" : "hf_...";
       }).catch(() => {
         populateModelDropdowns();
       });
@@ -3759,11 +3868,15 @@
 
     async function saveSettingsUI() {
       const method = document.getElementById("settAuthMethod").value;
-      const isOllama = method === "ollama";
+      const useCustomInput = method === "ollama" || method === "openrouter" || method === "gemini" || method === "huggingface";
 
       function getModelValue(role) {
-        if (isOllama) {
-          return document.getElementById("settModel" + role + "Custom").value.trim() || "qwen2.5-coder:14b";
+        if (useCustomInput) {
+          const val = document.getElementById("settModel" + role + "Custom").value.trim();
+          if (val) return val;
+          if (method === "gemini") return "gemini/gemini-2.0-flash";
+          if (method === "huggingface") return "deepseek-ai/DeepSeek-V4-Pro";
+          return "qwen2.5-coder:14b";
         }
         return document.getElementById("settModel" + role).value;
       }
@@ -3773,11 +3886,23 @@
           method,
           apiKey: document.getElementById("settApiKey").value || true,
           ollamaBaseUrl: document.getElementById("settOllamaUrl").value.trim() || "http://localhost:11434",
+          openRouterApiKey: document.getElementById("settOpenRouterKey").value || true,
+          geminiApiKey: document.getElementById("settGeminiKey").value || true,
+          geminiProxyUrl: document.getElementById("settGeminiProxyUrl").value.trim() || "http://localhost:4000",
+          hfToken: document.getElementById("settHfToken").value || document.getElementById("settHfBuilderToken").value || true,
+          hfProxyUrl: document.getElementById("settHfProxyUrl").value.trim() || "http://localhost:4000",
         },
         models: {
+          pm: getModelValue("Pm"),
           manager: getModelValue("Manager"),
+          designer: getModelValue("Designer"),
           coder: getModelValue("Coder"),
           devops: getModelValue("Devops"),
+        },
+        features: {
+          designer: document.getElementById("settDesignerEnabled").checked,
+          designerImages: document.getElementById("settDesignerImages").checked,
+          designerStyle: document.getElementById("settDesignerStyle").value.trim(),
         },
       };
 

@@ -29,6 +29,10 @@ import { readHandoff, verifyHandoffFiles, HandoffError } from './handoff.js';
  * @param {number} opts.timeoutMs
  * @returns {Promise<object>} the validated handoff.
  */
+// Roles that only write docs/specs — file verification is skipped for them
+// because they never produce application code files.
+const DOC_ONLY_ROLES = new Set(['manager', 'designer', 'pm']);
+
 export async function runWorker({
   container,
   projectDir,
@@ -36,6 +40,7 @@ export async function runWorker({
   systemPrompt,
   taskPrompt,
   model,
+  role,
   timeoutMs = 10 * 60 * 1000,
 }) {
   log.step(taskId, `Worker starting${model ? ` (model: ${model})` : ''}`);
@@ -189,7 +194,10 @@ export async function runWorker({
   // Cheap verification: did the files the handoff claims to have created
   // actually land on disk and have content?
   // Skip for synthesized handoffs — we already verified the files exist.
-  if (!handoff._synthesized) {
+  // Skip for doc-only roles (manager, designer, pm) — they produce specs not code;
+  // even if the LLM lists future code files in files_created, we don't abort.
+  const isDocOnly = role && DOC_ONLY_ROLES.has(role);
+  if (!handoff._synthesized && !isDocOnly) {
     const verification = await verifyHandoffFiles(projectDir, handoff);
     if (!verification.ok) {
       log.warn(taskId, `Handoff verification failed. Missing: ${verification.missing.join(', ') || 'none'}. Empty: ${verification.empty.join(', ') || 'none'}`);
@@ -198,6 +206,8 @@ export async function runWorker({
         { taskId, reason: 'verification_failed', handoff }
       );
     }
+  } else if (isDocOnly) {
+    log.dim(taskId, `Doc-only role — skipping file verification`);
   }
 
   log.ok(taskId, `Handoff verified: ${handoff.summary}`);
@@ -210,10 +220,13 @@ export async function runWorker({
 async function isRetryableError(logPath) {
   try {
     const logContent = await fs.readFile(logPath, 'utf8');
-    // Check last 2000 chars for the error markers
-    const tail = logContent.slice(-2000);
+    // Check last 4000 chars for error markers (Anthropic + OpenRouter formats)
+    const tail = logContent.slice(-4000);
     return /\"api_error_status\":\s*(429|401)/.test(tail) ||
-           /\"error\":\s*\"(rate_limit|authentication_failed)\"/.test(tail);
+           /\"error\":\s*\"(rate_limit|authentication_failed)\"/.test(tail) ||
+           /"code":\s*(429|401)/.test(tail) ||
+           /rate.?limit/i.test(tail) ||
+           /unauthorized|invalid.?api.?key|invalid.?auth/i.test(tail);
   } catch {
     return false;
   }

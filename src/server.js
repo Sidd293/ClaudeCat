@@ -49,7 +49,7 @@ const officeState = {
   goal: null,
   slug: null,
   projectId: null,
-  checksum: '0000',       // 4-bit visual state: [orchestrator, pm/manager, coder, devops]
+  checksum: '00000',       // 4-bit visual state: [orchestrator, pm/manager, coder, devops]
   url: null,              // final project URL for conference hall
   activeTask: null,
   tasks: [],              // completed task summaries
@@ -93,21 +93,24 @@ function getTaskRole(task) {
   if (!id) return null;
   if (id === 'pm' || id.startsWith('pm-')) return 'pm';
   if (id === 'manager' || id.startsWith('manager-') || id === 'architect' || id.startsWith('architect-')) return 'manager';
+  if (id === 'designer' || id.startsWith('designer-')) return 'designer';
   if (id === 'coder' || id.startsWith('coder-')) return 'coder';
   if (id === 'devops' || id.startsWith('devops-')) return 'devops';
   return null;
 }
 
 function checksumForRole(role) {
-  const bits = ['1', '0', '0', '0'];
+  // 5 bits: [orchestrator, pm/manager, designer, coder, devops]
+  const bits = ['1', '0', '0', '0', '0'];
   if (role === 'pm' || role === 'manager') bits[1] = '1';
-  if (role === 'coder') bits[2] = '1';
-  if (role === 'devops') bits[3] = '1';
+  if (role === 'designer') bits[2] = '1';
+  if (role === 'coder') bits[3] = '1';
+  if (role === 'devops') bits[4] = '1';
   return bits.join('');
 }
 
 async function writeRoleAlias(projectDir, role, handoff) {
-  if (!['manager', 'coder', 'devops'].includes(role)) return;
+  if (!['manager', 'designer', 'coder', 'devops'].includes(role)) return;
 
   const aliasPath = path.join(projectDir, '.claudecat', 'handoffs', `${role}.json`);
   const aliasHandoff = {
@@ -313,6 +316,35 @@ app.post('/api/settings', async (req, res) => {
     incoming.auth.apiKey = null;
   }
 
+  // Preserve existing OpenRouter key when browser sends `true` (meaning "keep existing")
+  if (incoming.auth?.openRouterApiKey === true) {
+    incoming.auth.openRouterApiKey = current.auth.openRouterApiKey;
+  }
+  if (incoming.auth?.openRouterApiKey === '') {
+    incoming.auth.openRouterApiKey = null;
+  }
+
+  // Preserve existing Gemini key when browser sends `true` (meaning "keep existing")
+  if (incoming.auth?.geminiApiKey === true) {
+    incoming.auth.geminiApiKey = current.auth.geminiApiKey;
+  }
+  if (incoming.auth?.geminiApiKey === '') {
+    incoming.auth.geminiApiKey = null;
+  }
+
+  // Preserve existing HF token when browser sends `true` (meaning "keep existing")
+  if (incoming.auth?.hfToken === true) {
+    incoming.auth.hfToken = current.auth.hfToken;
+  }
+  if (incoming.auth?.hfToken === '') {
+    incoming.auth.hfToken = null;
+  }
+
+  // HuggingFace provider — fall back to saved proxy URL if not sent
+  if (!incoming.auth?.hfProxyUrl) {
+    if (incoming.auth) incoming.auth.hfProxyUrl = current.auth.hfProxyUrl || 'http://localhost:4000';
+  }
+
   await persistSettings(incoming);
   res.json(getSafeSettings());
 });
@@ -346,7 +378,7 @@ app.post('/api/build', (req, res) => {
   // Run the build in the background
   runBuild(goal, projectId, projectSlug).catch((e) => {
     log.err('server', `Build failed: ${e.message}`);
-    updateState({ phase: 'error', error: e.message, checksum: '0000' });
+    updateState({ phase: 'error', error: e.message, checksum: '00000' });
   });
 });
 
@@ -474,7 +506,7 @@ app.post('/api/rebuild', (req, res) => {
 
   runRebuild(goal, projectId, projectSlug, projectDir).catch((e) => {
     log.err('server', `Rebuild failed: ${e.message}`);
-    updateState({ phase: 'error', error: e.message, checksum: '0000' });
+    updateState({ phase: 'error', error: e.message, checksum: '00000' });
   });
 });
 
@@ -494,7 +526,7 @@ async function runBuild(goal, projectId, projectSlug) {
     goal,
     slug: projectSlug,
     projectId,
-    checksum: '1000',
+    checksum: '10000',
     url: null,
     activeTask: null,
     tasks: [],
@@ -529,56 +561,83 @@ async function runBuild(goal, projectId, projectSlug) {
     log.info('orchestrator', `Roadmap: ${roadmap.slices.map((slice) => slice.title).join(' → ')}`);
     log.info('orchestrator', `Execution plan: ${executionTasks.map((t) => t.id).join(' → ')}`);
 
-    await executeTaskSequence({
-      container,
-      projectDir,
-      tasks: executionTasks,
-      handoffs,
-    });
-
-    // All tasks done — launch the project
-    await container.stop();
-    await container.remove();
-
-    // Orchestrator + devops active during launch
-    updateState({ checksum: '1001', activeTask: 'launching' });
-    broadcast('launch:start', {});
-
+    // Allocate port + write override once — reused for all slice previews
     await ensureProxy();
-
     const hostPort = await findFreePort();
     const override = [
       'services:', '  app:', '    ports:', `      - "${hostPort}:3000"`, '',
     ].join('\n');
     await fs.writeFile(path.join(projectDir, 'docker-compose.override.yml'), override);
 
-    try {
-      execSync('docker compose up --build -d', {
-        cwd: projectDir, stdio: 'pipe', timeout: 120_000,
-      });
-      registerProject(projectSlug, hostPort, projectId);
-    } catch (e) {
-      log.err('launcher', `docker compose up failed: ${e.message}`);
-      updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '0000' });
-      return;
+    // Execute slices one by one, launching a preview after each
+    const sortedSlices = [...roadmap.slices].sort((a, b) => a.priority - b.priority);
+    for (let i = 0; i < sortedSlices.length; i++) {
+      const slice = sortedSlices[i];
+      const sliceTasks = executionTasks.filter((t) => t.slice?.id === slice.id);
+
+      log.info('orchestrator', `Executing slice ${i + 1}/${sortedSlices.length}: ${slice.title}`);
+      await executeTaskSequence({ container, projectDir, tasks: sliceTasks, handoffs });
+
+      // Launch/update preview after this slice — only if docker-compose.yml exists
+      const hasCompose = await fs.access(path.join(projectDir, 'docker-compose.yml')).then(() => true).catch(() => false);
+      if (!hasCompose) {
+        log.warn('launcher', `Slice ${i + 1}: no docker-compose.yml yet, skipping preview`);
+        continue;
+      }
+
+      updateState({ checksum: '10001', activeTask: 'launching' });
+      broadcast('launch:start', { slice: i + 1, total: sortedSlices.length });
+
+      try {
+        execSync('docker compose up --build -d', {
+          cwd: projectDir, stdio: 'pipe', timeout: 120_000,
+        });
+        registerProject(projectSlug, hostPort, projectId);
+
+        const projectUrl = `http://${projectSlug}.localhost`;
+        log.ok('launcher', `Slice ${i + 1}/${sortedSlices.length} preview at ${projectUrl}`);
+
+        if (i < sortedSlices.length - 1) {
+          // More slices remain — stay in building phase but surface the preview URL
+          updateState({ checksum: '11110', url: projectUrl, activeTask: null });
+          broadcast('slice:preview', { url: projectUrl, slice: i + 1, total: sortedSlices.length });
+        } else {
+          // Final slice done — celebrate
+          updateState({ phase: 'done', checksum: '11111', url: projectUrl, activeTask: null });
+          broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+        }
+      } catch (e) {
+        log.err('launcher', `docker compose up failed after slice ${i + 1}: ${e.message}`);
+        updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '00000' });
+        return;
+      }
     }
 
-    const projectUrl = `http://${projectSlug}.localhost`;
-    log.ok('launcher', `Project live at ${projectUrl}`);
+    // If final slice had no compose (all slices skipped preview), try one last launch
+    const hasComposeFinal = await fs.access(path.join(projectDir, 'docker-compose.yml')).then(() => true).catch(() => false);
+    if (hasComposeFinal && officeState.phase !== 'done' && officeState.phase !== 'error') {
+      updateState({ checksum: '10001', activeTask: 'launching' });
+      try {
+        execSync('docker compose up --build -d', { cwd: projectDir, stdio: 'pipe', timeout: 120_000 });
+        registerProject(projectSlug, hostPort, projectId);
+        const projectUrl = `http://${projectSlug}.localhost`;
+        log.ok('launcher', `Project live at ${projectUrl}`);
+        updateState({ phase: 'done', checksum: '11111', url: projectUrl, activeTask: null });
+        broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+      } catch (e) {
+        log.err('launcher', `Final launch failed: ${e.message}`);
+        updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '00000' });
+      }
+    }
 
-    // Final state: show the URL in the conference hall, all cats celebrate
-    updateState({
-      phase: 'done',
-      checksum: '1111',
-      url: projectUrl,
-      activeTask: null,
-    });
-    broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+    // All slices done — stop workspace container
+    await container.stop();
+    await container.remove();
 
   } catch (e) {
     await container.stop().catch(() => {});
     await container.remove().catch(() => {});
-    updateState({ phase: 'error', error: e.message, checksum: '1000', activeTask: null });
+    updateState({ phase: 'error', error: e.message, checksum: '10000', activeTask: null });
     throw e;
   }
 }
@@ -597,7 +656,7 @@ async function runRebuild(goal, projectId, projectSlug, projectDir) {
     goal: `[update] ${goal}`,
     slug: projectSlug,
     projectId,
-    checksum: '1000',
+    checksum: '10000',
     url: null,
     activeTask: null,
     tasks: [],
@@ -651,54 +710,80 @@ async function runRebuild(goal, projectId, projectSlug, projectDir) {
     log.info('orchestrator', `Update roadmap: ${roadmap.slices.map((slice) => slice.title).join(' → ')}`);
     log.info('orchestrator', `Update execution plan: ${executionTasks.map((t) => t.id).join(' → ')}`);
 
-    await executeTaskSequence({
-      container,
-      projectDir,
-      tasks: executionTasks,
-      handoffs,
-    });
-
-    // All tasks done — relaunch the updated project
-    await container.stop();
-    await container.remove();
-
-    updateState({ checksum: '1001', activeTask: 'launching' });
-    broadcast('launch:start', {});
-
+    // Allocate port + write override once — reused for all slice previews
     await ensureProxy();
-
     const hostPort = await findFreePort();
     const override = [
       'services:', '  app:', '    ports:', `      - "${hostPort}:3000"`, '',
     ].join('\n');
     await fs.writeFile(path.join(projectDir, 'docker-compose.override.yml'), override);
 
-    try {
-      execSync('docker compose up --build -d', {
-        cwd: projectDir, stdio: 'pipe', timeout: 120_000,
-      });
-      registerProject(projectSlug, hostPort, projectId);
-    } catch (e) {
-      log.err('launcher', `docker compose up failed: ${e.message}`);
-      updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '0000' });
-      return;
+    // Execute slices one by one, launching a preview after each
+    const sortedSlices = [...roadmap.slices].sort((a, b) => a.priority - b.priority);
+    for (let i = 0; i < sortedSlices.length; i++) {
+      const slice = sortedSlices[i];
+      const sliceTasks = executionTasks.filter((t) => t.slice?.id === slice.id);
+
+      log.info('orchestrator', `Executing update slice ${i + 1}/${sortedSlices.length}: ${slice.title}`);
+      await executeTaskSequence({ container, projectDir, tasks: sliceTasks, handoffs });
+
+      const hasCompose = await fs.access(path.join(projectDir, 'docker-compose.yml')).then(() => true).catch(() => false);
+      if (!hasCompose) {
+        log.warn('launcher', `Update slice ${i + 1}: no docker-compose.yml yet, skipping preview`);
+        continue;
+      }
+
+      updateState({ checksum: '10001', activeTask: 'launching' });
+      broadcast('launch:start', { slice: i + 1, total: sortedSlices.length });
+
+      try {
+        execSync('docker compose up --build -d', {
+          cwd: projectDir, stdio: 'pipe', timeout: 120_000,
+        });
+        registerProject(projectSlug, hostPort, projectId);
+
+        const projectUrl = `http://${projectSlug}.localhost`;
+        log.ok('launcher', `Update slice ${i + 1}/${sortedSlices.length} preview at ${projectUrl}`);
+
+        if (i < sortedSlices.length - 1) {
+          updateState({ checksum: '11110', url: projectUrl, activeTask: null });
+          broadcast('slice:preview', { url: projectUrl, slice: i + 1, total: sortedSlices.length });
+        } else {
+          updateState({ phase: 'done', checksum: '11111', url: projectUrl, activeTask: null });
+          broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+        }
+      } catch (e) {
+        log.err('launcher', `docker compose up failed after update slice ${i + 1}: ${e.message}`);
+        updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '00000' });
+        return;
+      }
     }
 
-    const projectUrl = `http://${projectSlug}.localhost`;
-    log.ok('launcher', `Updated project live at ${projectUrl}`);
+    // All slices done — stop workspace container
+    await container.stop();
+    await container.remove();
 
-    updateState({
-      phase: 'done',
-      checksum: '1111',
-      url: projectUrl,
-      activeTask: null,
-    });
-    broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+    // If no slice produced a compose file, try one final launch
+    const hasComposeFinal = await fs.access(path.join(projectDir, 'docker-compose.yml')).then(() => true).catch(() => false);
+    if (hasComposeFinal && officeState.phase !== 'done' && officeState.phase !== 'error') {
+      updateState({ checksum: '10001', activeTask: 'launching' });
+      try {
+        execSync('docker compose up --build -d', { cwd: projectDir, stdio: 'pipe', timeout: 120_000 });
+        registerProject(projectSlug, hostPort, projectId);
+        const projectUrl = `http://${projectSlug}.localhost`;
+        log.ok('launcher', `Updated project live at ${projectUrl}`);
+        updateState({ phase: 'done', checksum: '11111', url: projectUrl, activeTask: null });
+        broadcast('launch:done', { url: projectUrl, slug: projectSlug });
+      } catch (e) {
+        log.err('launcher', `Final launch failed: ${e.message}`);
+        updateState({ phase: 'error', error: `Launch failed: ${e.message}`, checksum: '00000' });
+      }
+    }
 
   } catch (e) {
     await container.stop().catch(() => {});
     await container.remove().catch(() => {});
-    updateState({ phase: 'error', error: e.message, checksum: '1000', activeTask: null });
+    updateState({ phase: 'error', error: e.message, checksum: '10000', activeTask: null });
     throw e;
   }
 }
