@@ -1,16 +1,36 @@
 .DS_Store
+**/.DS_Store
 
 # Local secrets
 .env
 env
+.venv
+venv
 .env.*
 !.env.example
+.leankg
+*.db
+*.sqlite
+*.sqlite3
 
 # Dependencies
 node_modules/
 
 # Local project sandboxes
 projects/
+
+# Python cache / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Test / build output
+.coverage
+coverage/
+htmlcov/
+dist/
+build/
 
 # Logs
 *.log
