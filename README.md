@@ -1,123 +1,194 @@
-# 🐱 ClaudeCat POC
+# ClaudeCat
 
-> A sleeping cat orchestrates Claude Code workers inside Docker containers to build your projects.
+> A local multi-agent app builder with a pixel-art office, Docker workspaces, and structured worker handoffs.
 
-This is a **v0 proof-of-concept** — a CLI that proves the core mechanism: an orchestrator spawning specialist "cats" (Claude Code instances) in a sandboxed container, coordinating them via structured handoffs written to disk.
-
-No UI yet. That comes once the loop is fun.
+ClaudeCat runs a small team of specialist "cats" to build or update projects on your machine. It gives you a browser UI for starting builds, streams live progress over SSE, launches each generated app in Docker, and routes finished projects to local URLs like `http://todo-app.localhost`.
 
 ## What it does
 
-You type:
-```bash
-claudecat "build me a todo app with express and sqlite"
-```
+- Starts a local "office" server and pixel-art UI.
+- Creates one Docker workspace container per project.
+- Runs a roadmap-driven worker chain: `pm` -> `manager` -> `coder` -> `devops`.
+- Passes results through `.claudecat/handoffs/*.json` instead of raw model output.
+- Launches finished projects with `docker compose`.
+- Supports iterative rebuilds on existing projects.
+- Stores settings in `~/.claudecat/settings.json`.
 
-And it:
+There is also a CLI entrypoint for one-shot runs, but the web office is now the main experience.
 
-1. Creates a project directory on your machine.
-2. Starts a Docker container with Node, Python, Claude Code, and your project dir mounted at `/workspace`.
-3. Runs **Architect Cat** 📐 — writes a `spec.md` and a structured handoff.
-4. Runs **Coder Cat** ⌨️ — reads the spec, implements it, installs deps.
-5. Prints run instructions for the generated project.
+## How it works
 
-The orchestrator **never reads worker thinking**. It only reads `.claudecat/handoffs/<task>.json` — structured summaries. This keeps token costs bounded and makes the workflow inspectable.
+1. You enter a goal in the office UI.
+2. ClaudeCat creates `projects/<project-id>/` on the host.
+3. A long-lived Docker workspace container mounts that directory at `/workspace`.
+4. Product Manager Kitty writes `.claudecat/roadmap.json`, breaking the work into small prioritized slices.
+5. For each slice, the planner assigns prompts for:
+   - `manager`: update or write `spec.md` for that slice
+   - `coder`: implement that slice and update `README.md`
+   - `devops`: audit deployment files and startup path for the cumulative project
+6. Each worker writes a handoff JSON file into `.claudecat/handoffs/`.
+7. After all slices pass, ClaudeCat runs `docker compose up --build -d`.
+8. A lightweight host-side proxy maps `<slug>.localhost` to the app's exposed port.
 
-## Architecture
+The orchestrator reads handoffs, not chain-of-thought or tool transcripts. That keeps the workflow inspectable and bounded.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Host (your machine)                                         │
-│                                                              │
-│    orchestrator.js                                           │
-│          │                                                   │
-│          │ spawns                                            │
-│          ▼                                                   │
-│    ┌─────────────────────────────────────────┐               │
-│    │ Docker container: claudecat-<projid>    │               │
-│    │   /workspace  ←─ bind-mount to host ────┼── ~/claudecat │
-│    │   │                                     │   /projects/  │
-│    │   ├── spec.md            (architect)    │     <id>/     │
-│    │   ├── src/...            (coder)        │               │
-│    │   └── .claudecat/                       │               │
-│    │       ├── handoffs/architect.json       │               │
-│    │       ├── handoffs/coder.json           │               │
-│    │       └── events/*.log                  │               │
-│    │                                         │               │
-│    │   Workers run here via `docker exec`:   │               │
-│    │   claude -p "..." --append-system-prompt│               │
-│    └─────────────────────────────────────────┘               │
-└──────────────────────────────────────────────────────────────┘
-```
+## Main pieces
 
-### Handoff contract
+- [src/server.js](src/server.js): Express server, SSE events, build/rebuild APIs, project listing, settings APIs
+- [src/planner.js](src/planner.js): roadmap-driven task planning for new builds and updates
+- [src/roadmap.js](src/roadmap.js): roadmap loading and validation
+- [src/worker.js](src/worker.js): runs Claude Code inside the workspace container, retries on auth/rate-limit failures, validates handoffs
+- [src/container.js](src/container.js): Docker image checks, container lifecycle, `docker exec` helper, orphan cleanup
+- [src/proxy.js](src/proxy.js): host-side reverse proxy and slug registry
+- [src/settings.js](src/settings.js): persisted auth and model configuration
+- [cat-office.html](cat-office.html): browser UI
 
-Every worker writes `.claudecat/handoffs/<task_id>.json`:
+## Requirements
 
-```json
-{
-  "task_id": "architect",
-  "status": "completed",
-  "summary": "Designed a minimal Express+SQLite todo API",
-  "files_created": ["spec.md"],
-  "stack": ["node", "express", "sqlite"],
-  "run_command": "npm install && npm start",
-  "port": 3000,
-  "assumptions_made": ["JSON body parsing; no auth for v0"],
-  "open_questions": [],
-  "handoff_to_next": "Coder implements per spec.md"
-}
-```
-
-The orchestrator validates shape, verifies claimed files exist and are non-empty, and passes only relevant info to the next worker.
-
-## Prerequisites
-
-- **Node.js 20+**
-- **Docker** (Desktop or Engine), daemon running
-- **Anthropic API key** — [console.anthropic.com](https://console.anthropic.com/)
-- ~1GB disk for the workspace image
+- Node.js 18+
+- Docker with the daemon running
+- Claude Code installed on the host if you want to use keychain-based auth
+- One of:
+  - Claude Code login available in macOS Keychain
+  - a manually entered Anthropic API key
+  - a local Ollama endpoint
 
 ## Setup
 
 ```bash
-# 1. Install deps
 npm install
-
-# 2. Configure
-cp .env.example .env
-# then edit .env and set ANTHROPIC_API_KEY
-
-# 3. Build the workspace image (one-time; takes 2-3 min)
 npm run build-image
+npm start
 ```
 
-## Usage
+Then open `http://localhost:3333`.
+
+Environment variables:
+
+- `CLAUDECAT_SERVER_PORT`: office server port, default `3333`
+- `CLAUDECAT_IMAGE`: workspace image tag, default `claudecat/workspace:latest`
+- `CLAUDECAT_WORKER_TIMEOUT`: per-worker timeout in seconds, default `600`
+
+## Auth and settings
+
+ClaudeCat stores settings in `~/.claudecat/settings.json`.
+
+Supported auth modes:
+
+- `keychain`: default; extracts Claude Code OAuth credentials from macOS Keychain
+- `manual`: uses a saved Anthropic API key
+- `ollama`: points workers at a local Ollama-compatible base URL
+
+Default model roles:
+
+- `pm`: `claude-haiku-4-5-20251001`
+- `manager`: `claude-haiku-4-5-20251001`
+- `coder`: `claude-opus-4-6`
+- `devops`: `claude-haiku-4-5-20251001`
+
+## Using the office
+
+From the browser UI you can:
+
+- start a new build from a natural-language prompt
+- generate follow-up BA questions for clarification
+- watch live task progress through SSE
+- inspect previously generated projects
+- read a project's generated `README.md`
+- trigger an update/rebuild for an existing project
+
+Finished projects are launched from their project directory with `docker compose`, and ClaudeCat registers a slug for local routing.
+
+## CLI usage
+
+The original CLI flow still exists:
 
 ```bash
 node src/orchestrator.js "build me a simple express server that returns hello world"
 ```
 
-Output goes into `./projects/<random-id>/`. The cats do their thing; when they're done you'll get run instructions.
+or after installation:
 
-## What's intentionally *not* in v0
+```bash
+claudecat "build me a todo app with express and sqlite"
+```
 
-These are all real, and will get built next. Not in the POC because shipping:
+This path runs the same core orchestration logic without the office UI.
 
-- **Retry logic.** If a worker fails, we stop. No retries, no user-prompted recovery.
-- **LLM-driven planning.** The task sequence is hardcoded (architect → coder).
-- **Parallel workers.** Serial only. No DAG scheduling.
-- **Real skill marketplace.** Two built-in cats, loaded from `workers/*.md`.
-- **Preview URL routing.** No Traefik yet — you run the app manually after.
-- **Budget caps.** `CLAUDECAT_BUDGET_USD` is wired but not enforced.
-- **UI.** No Electron, no pixel cat, no office view. Terminal only.
+## Generated project layout
 
-## Known gotchas
+Each project is created under `projects/<project-id>/`.
 
-- **Claude Code version drift.** Prompt behavior can change between versions. The Dockerfile installs `@latest`; pin once you find a version that works reliably.
-- **Docker socket not mounted.** Projects that need their own `docker compose up` (e.g., Postgres) won't work yet. Sibling-container support is next.
-- **`--dangerously-skip-permissions`** is on inside the container. This is OK because the container is sandboxed with CPU/memory limits, but never do this on the host.
-- **File permissions.** The container runs as UID 1000. On Linux hosts where your user isn't UID 1000, you may see permission issues on bind-mounted files. Easy fix: run the orchestrator with `--user $(id -u)` support (TODO).
+Common artifacts:
+
+- `spec.md`
+- app source files
+- `.claudecat/roadmap.json`
+- `docker-compose.yml` and related deployment files
+- `.claudecat/prompts/*.md`
+- `.claudecat/events/*.log`
+- `.claudecat/handoffs/*.json`
+
+Example PM roadmap shape:
+
+```json
+{
+  "goal": "Build a small CRM",
+  "strategy": "Ship the product as vertical slices in priority order",
+  "slices": [
+    {
+      "id": "foundation",
+      "priority": 1,
+      "title": "Basic contact list and create flow",
+      "description": "Users can add and view contacts",
+      "user_value": "The app is usable from the first slice",
+      "depends_on": [],
+      "acceptance_criteria": ["Contacts can be created and listed"],
+      "manager_notes": "Keep the first slice minimal but complete",
+      "coder_notes": "Preserve room for later contact detail features",
+      "devops_notes": "Keep compose ready after this slice"
+    }
+  ]
+}
+```
+
+Example handoff shape:
+
+```json
+{
+  "task_id": "coder-01-foundation",
+  "status": "completed",
+  "summary": "Implemented the foundation slice and updated the README",
+  "files_created": ["src/index.js", "README.md"],
+  "files_modified": ["package.json"]
+}
+```
+
+## Workspace image
+
+The workspace Docker image is defined in [docker/workspace.Dockerfile](docker/workspace.Dockerfile). It currently includes:
+
+- Node 20
+- Python 3 tooling
+- `git`, `curl`, `jq`, `ripgrep`, `sudo`
+- global `@anthropic-ai/claude-code`
+
+Workers run inside that container as the `cat` user with `/workspace` bind-mounted from the host project directory.
+
+## Notes and limitations
+
+- Planning is roadmap-driven but still sequential, not DAG-based or parallel.
+- Workers run sequentially; there is no parallel execution yet.
+- The reverse proxy prefers port `80` for `<slug>.localhost`. If that port is unavailable, friendly local domains may not work.
+- The default keychain auth flow is macOS-specific because it reads from the `security` CLI.
+- `--dangerously-skip-permissions` is used inside the sandboxed worker container.
+- Some generated apps may still need manual polish; this repo is orchestrating the workflow, not guaranteeing perfect app quality.
+
+## Scripts
+
+- `npm start`: start the office server
+- `npm run cli -- "<goal>"`: run the CLI orchestrator
+- `npm run build-image`: build the workspace image
 
 ## License
 

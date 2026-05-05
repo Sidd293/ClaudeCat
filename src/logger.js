@@ -3,6 +3,7 @@ import chalk from 'chalk';
 
 const CATS = {
   orchestrator: '🐱',
+  pm:           '🧭',
   manager:      '📐',
   architect:    '📐',
   coder:        '⌨️ ',

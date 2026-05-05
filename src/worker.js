@@ -231,6 +231,7 @@ async function synthesizeHandoff(projectDir, taskId, exitCode) {
     'package.json',
     'Dockerfile', 'docker-compose.yml',
     'spec.md',
+    '.claudecat/roadmap.json',
   ];
 
   const found = [];

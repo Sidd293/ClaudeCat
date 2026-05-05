@@ -15,9 +15,10 @@ import chalk from 'chalk';
 import { log } from './logger.js';
 import { ProjectContainer, sweepOrphans } from './container.js';
 import { runWorker, WorkerError } from './worker.js';
-import { planTasks, planUpdateTasks } from './planner.js';
+import { planRoadmapTask, planExecutionTasks } from './planner.js';
 import { ensureProxy, slugify, findFreePort, registerProject } from './proxy.js';
 import { loadSettings, getSettings, getSafeSettings, saveSettings as persistSettings } from './settings.js';
+import { readRoadmap } from './roadmap.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -48,16 +49,169 @@ const officeState = {
   goal: null,
   slug: null,
   projectId: null,
-  checksum: '0000',       // 4-bit: [orchestrator, manager, coder, devops]
+  checksum: '0000',       // 4-bit visual state: [orchestrator, pm/manager, coder, devops]
   url: null,              // final project URL for conference hall
   activeTask: null,
   tasks: [],              // completed task summaries
+  kanbanItems: [],
   error: null,
 };
 
 function updateState(patch) {
   Object.assign(officeState, patch);
   broadcast('state', officeState);
+}
+
+function initializeKanban(roadmap) {
+  const items = [...roadmap.slices]
+    .sort((a, b) => a.priority - b.priority)
+    .map((slice, index) => ({
+      id: slice.id,
+      order: index + 1,
+      title: slice.title,
+      description: slice.description || '',
+      status: 'ready',
+      currentRole: null,
+      summary: '',
+      error: null,
+    }));
+
+  updateState({ kanbanItems: items });
+}
+
+function patchKanbanItem(sliceId, patch) {
+  const nextItems = officeState.kanbanItems.map((item) =>
+    item.id === sliceId ? { ...item, ...patch } : item
+  );
+  updateState({ kanbanItems: nextItems });
+}
+
+function getTaskRole(task) {
+  if (task?.role) return task.role;
+
+  const id = typeof task === 'string' ? task : task?.id;
+  if (!id) return null;
+  if (id === 'pm' || id.startsWith('pm-')) return 'pm';
+  if (id === 'manager' || id.startsWith('manager-') || id === 'architect' || id.startsWith('architect-')) return 'manager';
+  if (id === 'coder' || id.startsWith('coder-')) return 'coder';
+  if (id === 'devops' || id.startsWith('devops-')) return 'devops';
+  return null;
+}
+
+function checksumForRole(role) {
+  const bits = ['1', '0', '0', '0'];
+  if (role === 'pm' || role === 'manager') bits[1] = '1';
+  if (role === 'coder') bits[2] = '1';
+  if (role === 'devops') bits[3] = '1';
+  return bits.join('');
+}
+
+async function writeRoleAlias(projectDir, role, handoff) {
+  if (!['manager', 'coder', 'devops'].includes(role)) return;
+
+  const aliasPath = path.join(projectDir, '.claudecat', 'handoffs', `${role}.json`);
+  const aliasHandoff = {
+    ...handoff,
+    task_id: role,
+    source_task_id: handoff.task_id,
+  };
+  await fs.writeFile(aliasPath, JSON.stringify(aliasHandoff, null, 2));
+}
+
+async function executeTaskSequence({ container, projectDir, tasks, handoffs }) {
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
+    const role = getTaskRole(task);
+
+    if (role === 'devops') {
+      const siblingCoderId = task.id.replace(/^devops/, 'coder');
+      const coderHandoff = handoffs.find((h) => h.task_id === siblingCoderId);
+      if (coderHandoff?._synthesized) {
+        log.warn('orchestrator', `Skipping ${task.id} — coder output was auto-recovered and may be incomplete`);
+        broadcast('task:start', { taskId: task.id, role, model: task.model, index: i, total: tasks.length, sliceTitle: task.slice?.title || null });
+        broadcast('task:done', { taskId: task.id, role, summary: 'Skipped — coder output incomplete' });
+        const skipped = {
+          task_id: task.id,
+          status: 'completed',
+          summary: 'Skipped — coder output was auto-recovered',
+          _skipped: true,
+        };
+        handoffs.push(skipped);
+        await writeRoleAlias(projectDir, role, skipped);
+        updateState({
+          tasks: handoffs.map((h) => ({ id: h.task_id, summary: h.summary })),
+        });
+        if (task.slice?.id) {
+          patchKanbanItem(task.slice.id, {
+            status: 'done',
+            currentRole: null,
+            summary: skipped.summary,
+            error: null,
+          });
+        }
+        continue;
+      }
+    }
+
+    updateState({ checksum: checksumForRole(role), activeTask: task.id });
+    if (task.slice?.id) {
+      patchKanbanItem(task.slice.id, {
+        status: 'in_progress',
+        currentRole: role,
+        error: null,
+      });
+    }
+    broadcast('task:start', {
+      taskId: task.id,
+      role,
+      model: task.model,
+      index: i,
+      total: tasks.length,
+      sliceTitle: task.slice?.title || null,
+    });
+
+    try {
+      const handoff = await runWorker({
+        container,
+        projectDir,
+        taskId: task.id,
+        systemPrompt: task.system,
+        taskPrompt: task.task,
+        model: task.model,
+        timeoutMs: TIMEOUT,
+      });
+      handoffs.push(handoff);
+      await writeRoleAlias(projectDir, role, handoff);
+      if (task.slice?.id) {
+        patchKanbanItem(task.slice.id, {
+          status: role === 'devops' ? 'done' : 'in_progress',
+          currentRole: role === 'devops' ? null : role,
+          summary: role === 'devops' ? handoff.summary : '',
+          error: null,
+        });
+      }
+      updateState({
+        tasks: handoffs.map((h) => ({ id: h.task_id, summary: h.summary })),
+      });
+      broadcast('task:done', { taskId: task.id, role, summary: handoff.summary });
+    } catch (e) {
+      if (task.slice?.id) {
+        patchKanbanItem(task.slice.id, {
+          status: 'in_progress',
+          currentRole: role,
+          error: e.message,
+        });
+      }
+      broadcast('task:error', { taskId: task.id, role, error: e.message });
+      if (e instanceof WorkerError) {
+        log.err('orchestrator', `Task '${e.taskId}' failed: ${e.message}`);
+        if (e.handoff) handoffs.push(e.handoff);
+      } else {
+        log.err('orchestrator', `Unexpected error in '${task.id}': ${e.message}`);
+      }
+      throw new Error(`Task ${task.id} failed: ${e.message}`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -249,14 +403,23 @@ app.get('/api/projects', async (req, res) => {
         meta.hasReadme = false;
       }
 
-      // Read the original goal from the manager task prompt if available
+      // Read the original goal from the PM prompt if available.
       try {
         const taskPrompt = await fs.readFile(
-          path.join(projectDir, '.claudecat', 'prompts', 'manager.task.md'), 'utf8'
+          path.join(projectDir, '.claudecat', 'prompts', 'pm.task.md'), 'utf8'
         );
         const goalMatch = taskPrompt.match(/The user wants:\s*(.+)/);
         if (goalMatch) meta.goal = goalMatch[1].trim();
-      } catch { /* no task prompt */ }
+      } catch {
+        // Fall back to older manager prompt format.
+        try {
+          const taskPrompt = await fs.readFile(
+            path.join(projectDir, '.claudecat', 'prompts', 'manager.task.md'), 'utf8'
+          );
+          const goalMatch = taskPrompt.match(/The user wants:\s*(.+)/);
+          if (goalMatch) meta.goal = goalMatch[1].trim();
+        } catch { /* no task prompt */ }
+      }
 
       // Check if it has docker-compose (i.e. was successfully built)
       try {
@@ -335,6 +498,7 @@ async function runBuild(goal, projectId, projectSlug) {
     url: null,
     activeTask: null,
     tasks: [],
+    kanbanItems: [],
     error: null,
   });
 
@@ -351,68 +515,26 @@ async function runBuild(goal, projectId, projectSlug) {
 
   try {
     await container.start();
-    const allTasks = await planTasks(goal);
-    log.info('orchestrator', `Plan: ${allTasks.map((t) => t.id).join(' → ')}`);
+    const pmTask = await planRoadmapTask(goal);
+    await executeTaskSequence({
+      container,
+      projectDir,
+      tasks: [pmTask],
+      handoffs,
+    });
 
-    for (let i = 0; i < allTasks.length; i++) {
-      const task = allTasks[i];
+    const roadmap = await readRoadmap(projectDir);
+    initializeKanban(roadmap);
+    const executionTasks = await planExecutionTasks({ userGoal: goal, roadmap });
+    log.info('orchestrator', `Roadmap: ${roadmap.slices.map((slice) => slice.title).join(' → ')}`);
+    log.info('orchestrator', `Execution plan: ${executionTasks.map((t) => t.id).join(' → ')}`);
 
-      // Skip devops if coder output was auto-recovered (incomplete)
-      if (task.id === 'devops') {
-        const coderHandoff = handoffs.find((h) => h.task_id === 'coder');
-        if (coderHandoff?._synthesized) {
-          log.warn('orchestrator', `Skipping devops — coder output was auto-recovered and may be incomplete`);
-          broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
-          broadcast('task:done', { taskId: task.id, summary: 'Skipped — coder output incomplete' });
-          handoffs.push({ task_id: 'devops', status: 'completed', summary: 'Skipped — coder output was auto-recovered', _skipped: true });
-          continue;
-        }
-      }
-
-      // Update checksum: bit 0 = orchestrator (always on), bit 1 = manager, bit 2 = coder, bit 3 = devops
-      const bits = ['1', '0', '0', '0'];
-      if (task.id === 'manager') bits[1] = '1';
-      if (task.id === 'coder') bits[2] = '1';
-      if (task.id === 'devops') bits[3] = '1';
-      updateState({ checksum: bits.join(''), activeTask: task.id });
-
-      broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
-
-      try {
-        const h = await runWorker({
-          container, projectDir,
-          taskId: task.id,
-          systemPrompt: task.system,
-          taskPrompt: task.task,
-          model: task.model,
-          timeoutMs: TIMEOUT,
-        });
-        handoffs.push(h);
-        updateState({
-          tasks: handoffs.map((h) => ({ id: h.task_id, summary: h.summary })),
-        });
-        broadcast('task:done', { taskId: task.id, summary: h.summary });
-      } catch (e) {
-        broadcast('task:error', { taskId: task.id, error: e.message });
-
-        if (e instanceof WorkerError) {
-          log.err('orchestrator', `Task '${e.taskId}' failed: ${e.message}`);
-          if (e.handoff) handoffs.push(e.handoff);
-        } else {
-          log.err('orchestrator', `Unexpected error in '${task.id}': ${e.message}`);
-        }
-
-        updateState({
-          phase: 'error',
-          error: `Task ${task.id} failed: ${e.message}`,
-          checksum: '1000',
-          activeTask: null,
-        });
-        await container.stop().catch(() => {});
-        await container.remove().catch(() => {});
-        return;
-      }
-    }
+    await executeTaskSequence({
+      container,
+      projectDir,
+      tasks: executionTasks,
+      handoffs,
+    });
 
     // All tasks done — launch the project
     await container.stop();
@@ -456,7 +578,7 @@ async function runBuild(goal, projectId, projectSlug) {
   } catch (e) {
     await container.stop().catch(() => {});
     await container.remove().catch(() => {});
-    updateState({ phase: 'error', error: e.message, checksum: '0000' });
+    updateState({ phase: 'error', error: e.message, checksum: '1000', activeTask: null });
     throw e;
   }
 }
@@ -479,6 +601,7 @@ async function runRebuild(goal, projectId, projectSlug, projectDir) {
     url: null,
     activeTask: null,
     tasks: [],
+    kanbanItems: [],
     error: null,
   });
 
@@ -514,64 +637,26 @@ async function runRebuild(goal, projectId, projectSlug, projectDir) {
 
   try {
     await container.start();
-    const allTasks = await planUpdateTasks(goal);
-    log.info('orchestrator', `Update plan: ${allTasks.map((t) => t.id).join(' → ')}`);
+    const pmTask = await planRoadmapTask(goal, { isUpdate: true });
+    await executeTaskSequence({
+      container,
+      projectDir,
+      tasks: [pmTask],
+      handoffs,
+    });
 
-    for (let i = 0; i < allTasks.length; i++) {
-      const task = allTasks[i];
+    const roadmap = await readRoadmap(projectDir);
+    initializeKanban(roadmap);
+    const executionTasks = await planExecutionTasks({ userGoal: goal, roadmap, isUpdate: true });
+    log.info('orchestrator', `Update roadmap: ${roadmap.slices.map((slice) => slice.title).join(' → ')}`);
+    log.info('orchestrator', `Update execution plan: ${executionTasks.map((t) => t.id).join(' → ')}`);
 
-      if (task.id === 'devops') {
-        const coderHandoff = handoffs.find((h) => h.task_id === 'coder');
-        if (coderHandoff?._synthesized) {
-          log.warn('orchestrator', `Skipping devops — coder output was auto-recovered`);
-          broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
-          broadcast('task:done', { taskId: task.id, summary: 'Skipped — coder output incomplete' });
-          handoffs.push({ task_id: 'devops', status: 'completed', summary: 'Skipped', _skipped: true });
-          continue;
-        }
-      }
-
-      const bits = ['1', '0', '0', '0'];
-      if (task.id === 'manager') bits[1] = '1';
-      if (task.id === 'coder') bits[2] = '1';
-      if (task.id === 'devops') bits[3] = '1';
-      updateState({ checksum: bits.join(''), activeTask: task.id });
-
-      broadcast('task:start', { taskId: task.id, model: task.model, index: i, total: allTasks.length });
-
-      try {
-        const h = await runWorker({
-          container, projectDir,
-          taskId: task.id,
-          systemPrompt: task.system,
-          taskPrompt: task.task,
-          model: task.model,
-          timeoutMs: TIMEOUT,
-        });
-        handoffs.push(h);
-        updateState({
-          tasks: handoffs.map((h) => ({ id: h.task_id, summary: h.summary })),
-        });
-        broadcast('task:done', { taskId: task.id, summary: h.summary });
-      } catch (e) {
-        broadcast('task:error', { taskId: task.id, error: e.message });
-        if (e instanceof WorkerError) {
-          log.err('orchestrator', `Task '${e.taskId}' failed: ${e.message}`);
-          if (e.handoff) handoffs.push(e.handoff);
-        } else {
-          log.err('orchestrator', `Unexpected error in '${task.id}': ${e.message}`);
-        }
-        updateState({
-          phase: 'error',
-          error: `Task ${task.id} failed: ${e.message}`,
-          checksum: '1000',
-          activeTask: null,
-        });
-        await container.stop().catch(() => {});
-        await container.remove().catch(() => {});
-        return;
-      }
-    }
+    await executeTaskSequence({
+      container,
+      projectDir,
+      tasks: executionTasks,
+      handoffs,
+    });
 
     // All tasks done — relaunch the updated project
     await container.stop();
@@ -613,7 +698,7 @@ async function runRebuild(goal, projectId, projectSlug, projectDir) {
   } catch (e) {
     await container.stop().catch(() => {});
     await container.remove().catch(() => {});
-    updateState({ phase: 'error', error: e.message, checksum: '0000' });
+    updateState({ phase: 'error', error: e.message, checksum: '1000', activeTask: null });
     throw e;
   }
 }

@@ -14,14 +14,15 @@ import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { execSync, spawn } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import { log } from './logger.js';
 import { ProjectContainer, sweepOrphans } from './container.js';
 import { runWorker, WorkerError } from './worker.js';
-import { planTasks } from './planner.js';
+import { planRoadmapTask, planExecutionTasks } from './planner.js';
 import { ensureProxy, slugify, findFreePort, registerProject } from './proxy.js';
 import { loadSettings } from './settings.js';
+import { readRoadmap } from './roadmap.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -113,6 +114,61 @@ async function launchProject(projectDir, slug, projectId) {
   }
 }
 
+async function writeRoleAlias(projectDir, role, handoff) {
+  if (!['manager', 'coder', 'devops'].includes(role)) return;
+
+  const aliasPath = path.join(projectDir, '.claudecat', 'handoffs', `${role}.json`);
+  const aliasHandoff = {
+    ...handoff,
+    task_id: role,
+    source_task_id: handoff.task_id,
+  };
+  await fs.writeFile(aliasPath, JSON.stringify(aliasHandoff, null, 2));
+}
+
+async function executeTaskSequence({ container, projectDir, tasks, handoffs }) {
+  for (const task of tasks) {
+    if (task.role === 'devops') {
+      const siblingCoderId = task.id.replace(/^devops/, 'coder');
+      const coderHandoff = handoffs.find((h) => h.task_id === siblingCoderId);
+      if (coderHandoff?._synthesized) {
+        log.warn('orchestrator', `Skipping ${task.id} — coder output was auto-recovered and may be incomplete`);
+        const skipped = {
+          task_id: task.id,
+          status: 'completed',
+          summary: 'Skipped — coder output was auto-recovered',
+          _skipped: true,
+        };
+        handoffs.push(skipped);
+        await writeRoleAlias(projectDir, task.role, skipped);
+        continue;
+      }
+    }
+
+    try {
+      const handoff = await runWorker({
+        container,
+        projectDir,
+        taskId: task.id,
+        systemPrompt: task.system,
+        taskPrompt: task.task,
+        model: task.model,
+        timeoutMs: TIMEOUT,
+      });
+      handoffs.push(handoff);
+      await writeRoleAlias(projectDir, task.role, handoff);
+    } catch (e) {
+      if (e instanceof WorkerError) {
+        log.err('orchestrator', `Task '${e.taskId}' failed: ${e.message}`);
+        if (e.handoff) handoffs.push(e.handoff);
+      } else {
+        log.err('orchestrator', `Unexpected error in '${task.id}': ${e.message}`);
+      }
+      throw e;
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -150,74 +206,50 @@ async function main() {
   });
 
   const handoffs = [];
-  let failed = false;
 
   try {
     await container.start();
+    const pmTask = await planRoadmapTask(goal);
+    await executeTaskSequence({
+      container,
+      projectDir,
+      tasks: [pmTask],
+      handoffs,
+    });
 
-    const tasks = await planTasks(goal);
-    log.info('orchestrator', `Plan: ${tasks.map((t) => t.id).join(' → ')}`);
+    const roadmap = await readRoadmap(projectDir);
+    const tasks = await planExecutionTasks({ userGoal: goal, roadmap });
+    log.info('orchestrator', `Roadmap: ${roadmap.slices.map((slice) => slice.title).join(' → ')}`);
+    log.info('orchestrator', `Execution plan: ${tasks.map((t) => t.id).join(' → ')}`);
 
-    for (const task of tasks) {
-      // Skip devops if coder output was auto-recovered (incomplete)
-      if (task.id === 'devops') {
-        const coderHandoff = handoffs.find((h) => h.task_id === 'coder');
-        if (coderHandoff?._synthesized) {
-          log.warn('orchestrator', `Skipping devops — coder output was auto-recovered and may be incomplete`);
-          handoffs.push({ task_id: 'devops', status: 'completed', summary: 'Skipped — coder output was auto-recovered', _skipped: true });
-          continue;
-        }
-      }
+    await executeTaskSequence({
+      container,
+      projectDir,
+      tasks,
+      handoffs,
+    });
 
-      try {
-        const h = await runWorker({
-          container,
-          projectDir,
-          taskId: task.id,
-          systemPrompt: task.system,
-          taskPrompt: task.task,
-          model: task.model,
-          timeoutMs: TIMEOUT,
-        });
-        handoffs.push(h);
-      } catch (e) {
-        failed = true;
-        if (e instanceof WorkerError) {
-          log.err('orchestrator', `Task '${e.taskId}' failed: ${e.message}`);
-          if (e.handoff) handoffs.push(e.handoff);
-        } else {
-          log.err('orchestrator', `Unexpected error in '${task.id}': ${e.message}`);
-        }
-        break; // POC: stop on first failure. Retry logic comes later.
-      }
-    }
+    // Stop the workspace container before launching the project's own containers.
+    await container.stop();
+    await container.remove();
 
-    if (!failed) {
-      // Stop the workspace container before launching the project's own containers.
-      await container.stop();
-      await container.remove();
+    // Ensure Traefik proxy + shared network are ready
+    await ensureProxy();
 
-      // Ensure Traefik proxy + shared network are ready
-      await ensureProxy();
+    // Launch the project — proxy routes <slug>.localhost to the app
+    const launchedSlug = await launchProject(projectDir, projectSlug, projectId);
 
-      // Launch the project — proxy routes <slug>.localhost to the app
-      const launchedSlug = await launchProject(projectDir, projectSlug, projectId);
-
-      summary(projectId, projectDir, handoffs, launchedSlug);
-    } else {
-      log.raw('');
-      log.err('orchestrator', `Run did not complete. Artifacts are in ${projectDir} for inspection.`);
-      log.raw('');
-      await container.stop();
-      await container.remove();
-    }
+    summary(projectId, projectDir, handoffs, launchedSlug);
   } catch (e) {
     await container.stop().catch(() => {});
     await container.remove().catch(() => {});
+    log.raw('');
+    log.err('orchestrator', `Run did not complete. Artifacts are in ${projectDir} for inspection.`);
+    log.raw('');
     throw e;
   }
 
-  process.exit(failed ? 1 : 0);
+  process.exit(0);
 }
 
 main().catch((e) => {

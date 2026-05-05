@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
     ollamaBaseUrl: 'http://localhost:11434',
   },
   models: {
+    pm:      'claude-haiku-4-5-20251001',
     manager: 'claude-haiku-4-5-20251001',
     coder:   'claude-opus-4-6',
     devops:  'claude-haiku-4-5-20251001',

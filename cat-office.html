@@ -2055,6 +2055,242 @@
       display: none;
     }
 
+    .kanban-fab {
+      position: fixed;
+      right: 18px;
+      bottom: 20px;
+      z-index: 70;
+      min-width: 108px;
+      padding: 10px 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background:
+        linear-gradient(180deg, rgba(34, 62, 79, 0.98), rgba(18, 30, 42, 0.98));
+      color: #d7f4ff;
+      border: 2px solid #10212f;
+      box-shadow: var(--pixel-shadow);
+      font-size: 1.05rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+
+    .kanban-fab-count {
+      min-width: 20px;
+      height: 20px;
+      padding: 0 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffd46b;
+      color: #2a1d08;
+      border: 2px solid #8b621d;
+      font-size: 0.92rem;
+      line-height: 1;
+    }
+
+    .kanban-drawer {
+      position: fixed;
+      right: 18px;
+      bottom: 74px;
+      z-index: 69;
+      width: min(560px, calc(100vw - 24px));
+      max-height: min(76vh, 760px);
+      display: flex;
+      flex-direction: column;
+      background:
+        linear-gradient(180deg, rgba(113, 79, 65, 0.98), rgba(46, 31, 29, 0.98));
+      border: 2px solid #150f10;
+      box-shadow: var(--pixel-shadow);
+      overflow: hidden;
+      transform-origin: bottom right;
+      transform: translateY(18px) scale(0.92);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 180ms steps(5, end), opacity 180ms steps(5, end);
+    }
+
+    .kanban-drawer.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .kanban-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px 10px;
+      background:
+        linear-gradient(180deg, rgba(82, 71, 93, 0.96), rgba(42, 33, 41, 0.98));
+      border-bottom: 2px solid #130e10;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .kanban-title {
+      color: #fff0d4;
+      font-size: 1.2rem;
+      text-shadow: 2px 2px 0 #171114;
+    }
+
+    .kanban-subtitle {
+      color: #a5eaff;
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .kanban-body {
+      padding: 14px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      background:
+        radial-gradient(circle at top right, rgba(255, 216, 137, 0.14), transparent 32%),
+        linear-gradient(180deg, rgba(255, 239, 214, 0.05), rgba(0, 0, 0, 0));
+    }
+
+    .kanban-column {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+      background: rgba(18, 13, 12, 0.48);
+      border: 2px solid rgba(255, 232, 205, 0.12);
+    }
+
+    .kanban-column-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #fff0d4;
+      text-transform: uppercase;
+      font-size: 0.98rem;
+      letter-spacing: 0.07em;
+    }
+
+    .kanban-column-count {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      color: #dff9ff;
+      line-height: 1;
+    }
+
+    .kanban-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 90px;
+    }
+
+    .kanban-empty {
+      padding: 14px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 2px dashed rgba(255, 238, 214, 0.14);
+      color: rgba(255, 232, 205, 0.72);
+      font-size: 0.98rem;
+      line-height: 1.2;
+    }
+
+    .kanban-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      background:
+        linear-gradient(180deg, rgba(255, 236, 215, 0.12), rgba(0, 0, 0, 0.05)),
+        rgba(24, 18, 17, 0.92);
+      border: 2px solid rgba(255, 232, 205, 0.16);
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18);
+    }
+
+    .kanban-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .kanban-order {
+      min-width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #3f7f58;
+      color: #efffe9;
+      border: 2px solid #20432d;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .kanban-card.done .kanban-order {
+      background: #356882;
+      border-color: #17394a;
+      color: #def6ff;
+    }
+
+    .kanban-card.in-progress .kanban-order {
+      background: #b9852e;
+      border-color: #644912;
+      color: #271702;
+    }
+
+    .kanban-card-title {
+      color: #fff3db;
+      font-size: 1.08rem;
+      line-height: 1.05;
+      text-transform: uppercase;
+    }
+
+    .kanban-card-desc {
+      color: #f2ddc1;
+      font-size: 0.98rem;
+      line-height: 1.15;
+    }
+
+    .kanban-card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: #d5ecf3;
+      font-size: 0.92rem;
+    }
+
+    .kanban-pill {
+      padding: 4px 7px;
+      background: rgba(100, 216, 255, 0.12);
+      border: 2px solid rgba(100, 216, 255, 0.24);
+      color: #a5ebff;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .kanban-note {
+      color: #ffdda8;
+      font-size: 0.92rem;
+      line-height: 1.1;
+    }
+
+    .kanban-error {
+      color: #ff9e9e;
+      font-size: 0.92rem;
+      line-height: 1.1;
+    }
+
     @media (max-width: 768px) {
       .ba-content {
         flex-direction: column;
@@ -2127,6 +2363,24 @@
       .projector-rig {
         left: 7%;
         right: 7%;
+      }
+
+      .kanban-drawer {
+        right: 10px;
+        left: 10px;
+        bottom: 68px;
+        width: auto;
+        max-height: 72vh;
+        transform-origin: bottom center;
+      }
+
+      .kanban-body {
+        grid-template-columns: 1fr;
+      }
+
+      .kanban-fab {
+        right: 10px;
+        bottom: 12px;
       }
     }
   </style>
@@ -2452,6 +2706,19 @@
         max-height:120px; overflow-y:auto; display:none;
       "
     ></div>
+
+    <button id="kanbanFab" class="kanban-fab" onclick="toggleKanban()" title="Open task board">
+      <span>Kanban</span>
+      <span id="kanbanFabCount" class="kanban-fab-count">0</span>
+    </button>
+
+    <aside id="kanbanDrawer" class="kanban-drawer" aria-hidden="true">
+      <div class="kanban-header">
+        <span class="kanban-title">Slice Board</span>
+        <span id="kanbanSubtitle" class="kanban-subtitle">Waiting for roadmap</span>
+      </div>
+      <div id="kanbanBody" class="kanban-body"></div>
+    </aside>
   </div>
 
   <script>
@@ -2918,6 +3185,107 @@
       logEl.scrollTop = logEl.scrollHeight;
     }
 
+    function taskLabel(taskId) {
+      if (!taskId) return "";
+      if (taskId === "pm" || taskId.startsWith("pm-")) return "Product Manager Kitty";
+      if (taskId === "manager" || taskId.startsWith("manager-")) return "Manager Kitty";
+      if (taskId === "coder" || taskId.startsWith("coder-")) return "Coder Kitty";
+      if (taskId === "devops" || taskId.startsWith("devops-")) return "DevOps Kitty";
+      return taskId;
+    }
+
+    function roleLabel(role) {
+      if (role === "pm") return "PM Kitty";
+      if (role === "manager") return "Manager Kitty";
+      if (role === "coder") return "Coder Kitty";
+      if (role === "devops") return "DevOps Kitty";
+      return role || "";
+    }
+
+    function toggleKanban(forceOpen) {
+      const drawer = document.getElementById("kanbanDrawer");
+      const shouldOpen = typeof forceOpen === "boolean"
+        ? forceOpen
+        : !drawer.classList.contains("open");
+      drawer.classList.toggle("open", shouldOpen);
+      drawer.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+    }
+
+    function renderKanban(items = [], phase = "idle") {
+      const body = document.getElementById("kanbanBody");
+      const subtitle = document.getElementById("kanbanSubtitle");
+      const count = document.getElementById("kanbanFabCount");
+      count.textContent = String(items.length);
+
+      if (!items.length) {
+        body.innerHTML = `
+          <div class="kanban-column" style="grid-column:1 / -1">
+            <div class="kanban-empty">${
+              phase === "building"
+                ? "Product Manager Kitty is breaking the work into ordered slices..."
+                : "No roadmap yet. Start a build to see the task board fill up."
+            }</div>
+          </div>
+        `;
+        subtitle.textContent = phase === "building" ? "Roadmap loading" : "Waiting for roadmap";
+        return;
+      }
+
+      const columns = [
+        { key: "ready", title: "Ready To Do", empty: "Upcoming slices will queue here in priority order." },
+        { key: "in_progress", title: "In Progress", empty: "No slice is active right now." },
+        { key: "done", title: "Deployed / Closed", empty: "Finished slices move here after DevOps Kitty signs off." }
+      ];
+
+      const grouped = {
+        ready: items.filter((item) => item.status === "ready"),
+        in_progress: items.filter((item) => item.status === "in_progress"),
+        done: items.filter((item) => item.status === "done"),
+      };
+
+      const nextReady = grouped.ready[0];
+      const activeSlice = grouped.in_progress[0];
+      subtitle.textContent = activeSlice
+        ? `Working on #${activeSlice.order} ${activeSlice.title}`
+        : nextReady
+          ? `Next up: #${nextReady.order} ${nextReady.title}`
+          : "All slices wrapped";
+
+      body.innerHTML = columns.map((column) => {
+        const cards = grouped[column.key];
+        const cardHtml = cards.length
+          ? cards.map((item) => `
+            <article class="kanban-card ${item.status === "in_progress" ? "in-progress" : item.status === "done" ? "done" : "ready"}">
+              <div class="kanban-card-head">
+                <span class="kanban-order">${item.order}</span>
+                <div style="flex:1; min-width:0;">
+                  <div class="kanban-card-title">${escapeHtml(item.title)}</div>
+                </div>
+              </div>
+              ${item.description ? `<div class="kanban-card-desc">${escapeHtml(item.description)}</div>` : ""}
+              <div class="kanban-card-meta">
+                ${item.currentRole ? `<span class="kanban-pill">${escapeHtml(roleLabel(item.currentRole))}</span>` : ""}
+                ${item.status === "ready" ? `<span class="kanban-pill">Queued</span>` : ""}
+                ${item.status === "done" ? `<span class="kanban-pill">Complete</span>` : ""}
+              </div>
+              ${item.summary ? `<div class="kanban-note">${escapeHtml(item.summary)}</div>` : ""}
+              ${item.error ? `<div class="kanban-error">${escapeHtml(item.error)}</div>` : ""}
+            </article>
+          `).join("")
+          : `<div class="kanban-empty">${column.empty}</div>`;
+
+        return `
+          <section class="kanban-column">
+            <div class="kanban-column-head">
+              <span>${column.title}</span>
+              <span class="kanban-column-count">${cards.length}</span>
+            </div>
+            <div class="kanban-card-list">${cardHtml}</div>
+          </section>
+        `;
+      }).join("");
+    }
+
     // ---- BA Panel ----
 
     let _baGoal = "";
@@ -3115,12 +3483,13 @@
       evtSource.addEventListener("state", (e) => {
         const state = JSON.parse(e.data);
         applyOfficeState(state.checksum, state.url);
+        renderKanban(state.kanbanItems || [], state.phase);
 
         const btn = document.getElementById("buildBtn");
         if (state.phase === "building") {
           btn.disabled = true;
           btn.textContent = state.activeTask
-            ? `${state.activeTask}...`
+            ? `${taskLabel(state.activeTask)}...`
             : "Building...";
           btn.style.opacity = "0.6";
         } else {
@@ -3132,16 +3501,14 @@
 
       evtSource.addEventListener("task:start", (e) => {
         const { taskId, model } = JSON.parse(e.data);
-        const names = { manager: "Manager Kitty", coder: "Coder Kitty", devops: "DevOps Kitty" };
         const shortModel = model ? model.replace(/^claude-/, "").replace(/-\d{8}$/, "") : "";
         const modelTag = shortModel ? ` [${shortModel}]` : "";
-        logMessage(`${names[taskId] || taskId}${modelTag} spawned — working...`, "#8feaff");
+        logMessage(`${taskLabel(taskId)}${modelTag} spawned — working...`, "#8feaff");
       });
 
       evtSource.addEventListener("task:done", (e) => {
         const { taskId, summary } = JSON.parse(e.data);
-        const names = { manager: "Manager Kitty", coder: "Coder Kitty", devops: "DevOps Kitty" };
-        logMessage(`${names[taskId] || taskId} done: ${summary}`, "#63ff98");
+        logMessage(`${taskLabel(taskId)} done: ${summary}`, "#63ff98");
       });
 
       evtSource.addEventListener("task:error", (e) => {
@@ -3436,12 +3803,19 @@
       // Apply initial state from query params (standalone mode)
       const queryState = getStateFromQuery();
       applyOfficeState(queryState.checksum, null);
+      renderKanban([], "idle");
       if (queryState.screenTarget) {
         applyOfficeState(queryState.checksum, queryState.screenTarget.src);
       }
 
       // Try connecting to the orchestrator server for live updates
       connectSSE();
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          toggleKanban(false);
+        }
+      });
     }
 
     boot();
