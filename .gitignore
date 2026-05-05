@@ -4,10 +4,10 @@
 .env
 .env.*
 !.env.example
-
+env
 # Dependencies
 node_modules/
-
+.leankg
 # Local project sandboxes
 projects/
 
